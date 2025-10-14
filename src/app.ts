@@ -8,6 +8,7 @@ import vesselRoutes from './routes/vesselRoutes.js';
 import tripRoutes from './routes/tripRoutes.js';
 import publicRoutes from './routes/publicRoutes.js';
 import bookingRoutes from "./routes/bookingRoutes.js";
+import stripeRoutes from "./routes/stripeRoutes.js";
 
 
 import { cleanupExpiredBookings } from "./cron/cleanupExpiredBookings.js"; // Import the cron job 
@@ -19,6 +20,11 @@ connectDB(process.env.MONGO_URI || "mongodb://localhost:27017/sauna");
 
 const app = express();
 app.use(cors());
+
+// Stripe webhook needs raw body, so register it BEFORE express.json()
+app.use('/api/stripe', stripeRoutes);
+
+// JSON body parser for other routes
 app.use(express.json());
 
 cleanupExpiredBookings(); // Start the cron job

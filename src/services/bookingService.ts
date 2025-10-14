@@ -78,6 +78,10 @@ export const createBooking = async ({
   // Calculate total price (for demo, basePriceCents * seats)
   const totalPriceCents = vessel.basePriceCents * (seatsBooked || 1);
 
+  // Get hold time from env or default to 30 minutes (Stripe minimum)
+  const holdMinutes = parseInt(process.env.HOLD_MINUTES || "30", 10);
+  const holdTime = Math.max(holdMinutes, 30); // Ensure minimum 30 minutes for Stripe compatibility
+
   const booking = await Booking.create({
     user: new mongoose.Types.ObjectId(userId),
     trip: trip ? trip._id : undefined,
@@ -87,7 +91,7 @@ export const createBooking = async ({
     endTime,
     totalPriceCents,
     status: "pending",
-    holdExpiresAt: new Date(Date.now() + 15 * 60 * 1000), // hold for 15 min
+    holdExpiresAt: new Date(Date.now() + holdTime * 60 * 1000), // hold time in minutes
   });
   
   return booking;

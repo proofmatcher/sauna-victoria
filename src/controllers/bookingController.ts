@@ -2,6 +2,10 @@ import { Request, Response } from "express";
 import { createBooking } from "../services/bookingService.js";
 import Booking from "../models/Booking.js";
 import Trip from "../models/Trip.js";
+import {
+  createCheckoutSession,
+  verifyPaymentStatus,
+} from "../services/stripePaymentService.js";
 
 /**
  * Reserve a booking (trip or trailer)
@@ -84,4 +88,73 @@ export const cancelBooking = async (req: Request, res: Response) => {
   await booking.save();
 
   res.json({ message: "Booking cancelled successfully", booking });
+};
+
+/**
+ * Initialize payment for a booking
+ * Creates a Stripe Checkout session
+ */
+export const initiatePayment = async (req: Request, res: Response) => {
+  const userId = (req as any).user._id;
+  const { bookingId, successUrl, cancelUrl } = req.body;
+
+  try {
+    // Verify booking belongs to user
+    const booking = await Booking.findOne({ _id: bookingId, user: userId });
+    
+    if (!booking) {
+      return res.status(404).json({ message: "Booking not found" });
+    }
+
+    if (booking.status !== "pending") {
+      return res.status(400).json({ 
+        message: `Cannot initiate payment. Booking status is ${booking.status}` 
+      });
+    }
+
+    // Create Stripe checkout session
+    const checkoutSession = await createCheckoutSession(
+      bookingId,
+      successUrl || `${process.env.FRONTEND_URL}/booking/success?bookingId=${bookingId}`,
+      cancelUrl || `${process.env.FRONTEND_URL}/booking/cancel?bookingId=${bookingId}`
+    );
+
+    res.json({
+      message: "Checkout session created",
+      sessionId: checkoutSession.sessionId,
+      url: checkoutSession.url,
+    });
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
+/**
+ * Verify payment status for a booking
+ */
+export const checkPaymentStatus = async (req: Request, res: Response) => {
+  const userId = (req as any).user._id;
+  const bookingId = req.params.bookingId;
+
+  if (!bookingId) {
+    return res.status(400).json({ message: "Booking ID is required" });
+  }
+
+  try {
+    // Verify booking belongs to user
+    const booking = await Booking.findOne({ _id: bookingId, user: userId });
+    
+    if (!booking) {
+      return res.status(404).json({ message: "Booking not found" });
+    }
+
+    const paymentStatus = await verifyPaymentStatus(bookingId);
+
+    res.json({
+      bookingId,
+      ...paymentStatus,
+    });
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
 };
