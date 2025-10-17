@@ -9,7 +9,11 @@ import tripRoutes from './routes/tripRoutes.js';
 import publicRoutes from './routes/publicRoutes.js';
 import bookingRoutes from "./routes/bookingRoutes.js";
 import stripeRoutes from "./routes/stripeRoutes.js";
-
+import adminBookingRoutes from "./routes/adminBookingRoutes.js";
+import adminDashboardRoutes from "./routes/adminDashboardRoutes.js";
+import adminUserRoutes from "./routes/adminUserRoutes.js";
+import adminServicePostRoutes from "./routes/adminServicePostRoutes.js";
+import publicServicePostRoutes from "./routes/publicServicePostRoutes.js";
 
 import { cleanupExpiredBookings } from "./cron/cleanupExpiredBookings.js"; // Import the cron job 
 
@@ -34,6 +38,11 @@ app.use('/api/vessels', vesselRoutes);
 app.use('/api/trips', tripRoutes);
 app.use('/api/public', publicRoutes);
 app.use('/api/bookings', bookingRoutes);
+app.use('/api/admin/bookings', adminBookingRoutes);
+app.use('/api/admin/dashboard', adminDashboardRoutes);
+app.use('/api/admin/users', adminUserRoutes);
+app.use('/api/admin/posts', adminServicePostRoutes);
+app.use('/api/services', publicServicePostRoutes);
 
 app.get('/', (req, res) => {
   res.send('Welcome to the Sauna Boat API');

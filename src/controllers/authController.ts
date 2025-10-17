@@ -48,6 +48,11 @@ export const loginUser = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
+    // Check if user is active
+    if (!user.isActive) {
+      return res.status(403).json({ message: "Account has been deactivated. Please contact support." });
+    }
+
     // Check if user's password exists
     if (!user.password) {
       console.error('User password is undefined for:', email);

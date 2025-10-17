@@ -100,6 +100,16 @@ export const handlePaymentSuccess = async (session: Stripe.Checkout.Session) => 
   booking.stripeSessionId = session.id;
   await booking.save();
 
+  // Send confirmation email to customer (async, don't wait)
+  try {
+    const { notifyCustomerBookingConfirmed } = await import("./notificationService.js");
+    notifyCustomerBookingConfirmed(bookingId).catch(err => 
+      console.error("Failed to send customer notification:", err)
+    );
+  } catch (err) {
+    console.error("Failed to import notification service:", err);
+  }
+
   return booking;
 };
 
