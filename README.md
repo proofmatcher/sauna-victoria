@@ -111,35 +111,10 @@ HOLD_MINUTES=30
 - Service post management system
 - Public content API
 
-⚠️ **In Progress:**
-- File upload for post images
-- Advanced analytics
-- Email notifications for bookings
-
 ## 🧪 Testing
 
 Use the provided CURL examples in documentation or import into Postman.
 
-### Test Admin Account
-- Email: `admin@example.com`
-- (Set password during first run)
-
-## 📦 Project Structure
-
-```
-express-ts-app/
-├── src/
-│   ├── config/         # Database & Stripe config
-│   ├── controllers/    # Request handlers
-│   ├── middleware/     # Auth & RBAC middleware
-│   ├── models/         # MongoDB schemas
-│   ├── routes/         # API routes
-│   ├── services/       # Business logic
-│   ├── utils/          # Helper functions
-│   └── cron/           # Scheduled tasks
-├── SERVICE_POST_API.md
-└── SERVICE_POST_QUICKSTART.md
-```
 
 ## 🤝 Contributing
 
