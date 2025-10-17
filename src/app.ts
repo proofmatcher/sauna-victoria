@@ -28,8 +28,9 @@ app.use(cors());
 // Stripe webhook needs raw body, so register it BEFORE express.json()
 app.use('/api/stripe', stripeRoutes);
 
-// JSON body parser for other routes
+// JSON body parser for ALL other routes
 app.use(express.json());
+app.use(express.urlencoded({ extended: true })); // Also parse URL-encoded bodies
 
 cleanupExpiredBookings(); // Start the cron job
 
