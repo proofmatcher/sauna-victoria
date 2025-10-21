@@ -5,6 +5,35 @@ import { User } from "../models/User.js";
 import { generateToken } from "../utils/generateToken.js";
 import { sendEmail } from "../utils/sendEmail.js";
 
+// Password validation function
+const validatePassword = (password: string): { isValid: boolean; message?: string } => {
+  // Check minimum length
+  if (password.length < 8) {
+    return { isValid: false, message: "Password must be at least 8 characters long" };
+  }
+
+  // Check for uppercase letter
+  if (!/[A-Z]/.test(password)) {
+    return { isValid: false, message: "Password must contain at least one uppercase letter" };
+  }
+
+  // Check for lowercase letter
+  if (!/[a-z]/.test(password)) {
+    return { isValid: false, message: "Password must contain at least one lowercase letter" };
+  }
+
+  // Check for number
+  if (!/\d/.test(password)) {
+    return { isValid: false, message: "Password must contain at least one number" };
+  }
+
+  if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+    return { isValid: false, message: "Password must contain at least one special character" };
+  }
+
+  return { isValid: true };
+};
+
 // Register User
 export const registerUser = async (req: Request, res: Response) => {
   const { name, email, password, role } = req.body;
@@ -12,6 +41,11 @@ export const registerUser = async (req: Request, res: Response) => {
   const existingUser = await User.findOne({ email });
   if (existingUser) {
     return res.status(400).json({ message: "User already exists" });
+  }
+  // Validate password strength
+  const { isValid, message } = validatePassword(password);
+  if (!isValid) {
+    return res.status(400).json({ message });
   }
 
   const user = await User.create({
@@ -88,13 +122,13 @@ export const forgotPassword = async (req: Request, res: Response) => {
   const resetToken = user.getResetPasswordToken();
   await user.save({ validateBeforeSave: false });
 
-  // For development - return the token directly for testing
-  if (process.env.NODE_ENV === 'development') {
-    return res.json({ 
-      message: "Password reset token generated (development mode)",
-      resetToken: resetToken,
-    });
-  }
+  // // For development - return the token directly for testing
+  // if (process.env.NODE_ENV === 'development') {
+  //   return res.json({ 
+  //     message: "Password reset token generated (development mode)",
+  //     resetToken: resetToken,
+  //   });
+  // }
 
   // For production - send email and return generic message
   try {
