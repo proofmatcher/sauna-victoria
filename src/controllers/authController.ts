@@ -1,9 +1,12 @@
 import type { Request, Response } from "express";
 import crypto from "crypto";
+import jwt from "jsonwebtoken";
 
 import { User } from "../models/User.js";
-import { generateToken } from "../utils/generateToken.js";
+import { BlacklistedToken } from "../models/BlacklistedToken.js";
+import { generateToken, generateRefreshToken, generateTokenPair } from "../utils/generateToken.js";
 import { sendEmail } from "../utils/sendEmail.js";
+import type { AuthRequest } from "../middleware/authMiddleware.js";
 
 // Password validation function
 const validatePassword = (password: string): { isValid: boolean; message?: string } => {
@@ -55,14 +58,24 @@ export const registerUser = async (req: Request, res: Response) => {
     role: role || "user",
   });
 
-  await user.save({ validateBeforeSave: false });
+  // Auto-set isStaff flag if role is "staff"
+  if (user.role === "staff") {
+    user.isStaff = true;
+    await user.save();
+    console.log(`✅ Auto-set isStaff=true for user ${user.email}`);
+  }
+
+  const tokens = generateTokenPair((user._id as any).toString());
 
   res.status(201).json({
     _id: user._id,
     name: user.name,
     email: user.email,
     role: user.role,
-    token: generateToken((user._id as any).toString()),
+    isStaff: user.isStaff,
+    accessToken: tokens.accessToken,
+    refreshToken: tokens.refreshToken,
+    message: "User registered successfully"
   });
 };
 
@@ -99,12 +112,17 @@ export const loginUser = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
+    const tokens = generateTokenPair((user._id as any).toString());
+    
     res.json({
       _id: user._id,
       name: user.name,
       email: user.email,
       role: user.role,
-      token: generateToken((user._id as any).toString()),
+      isStaff: user.isStaff,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      message: "Login successful"
     });
   } catch (error) {
     console.error('Login error:', error);
@@ -168,14 +186,166 @@ export const resetPassword = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Invalid or expired token" });
     }
 
+    // Validate password strength for reset
+    const { isValid, message: validationMessage } = validatePassword(password);
+    if (!isValid) {
+      return res.status(400).json({ message: validationMessage });
+    }
+
     user.password = password;
     user.resetPasswordToken = undefined;
     user.resetPasswordExpire = undefined;
     await user.save();
     
-    res.status(200).json({ message: "Password reset successful" });
+    // Invalidate all existing tokens for this user (security measure)
+    await BlacklistedToken.create({
+      token: "ALL_TOKENS", // Special marker for password reset
+      userId: user._id,
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+      reason: "password-change"
+    });
+    
+    console.log(`✅ Password reset successful for user: ${user.email}`);
+    res.status(200).json({ 
+      message: "Password reset successful. Please login with your new password." 
+    });
   } catch (error) {
     console.error('Reset password error:', error);
     res.status(500).json({ message: "Password reset failed" });
+  }
+};
+
+// Logout User - Blacklist the current token
+export const logoutUser = async (req: AuthRequest, res: Response) => {
+  try {
+    const token = req.token; // Retrieved from authMiddleware
+    const userId = req.user?._id;
+
+    if (!token || !userId) {
+      return res.status(400).json({ message: "No active session found" });
+    }
+
+    // Decode token to get expiration time
+    const decoded = jwt.decode(token) as any;
+    const expiresAt = decoded?.exp ? new Date(decoded.exp * 1000) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    // Add token to blacklist
+    await BlacklistedToken.create({
+      token,
+      userId,
+      expiresAt,
+      reason: "logout"
+    });
+
+    console.log(`✅ User logged out successfully: ${req.user.email}`);
+    res.status(200).json({ 
+      message: "Logged out successfully",
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Logout error:', error);
+    res.status(500).json({ message: "Logout failed" });
+  }
+};
+
+// Refresh Token - Generate new access token
+export const refreshToken = async (req: Request, res: Response) => {
+  try {
+    const { refreshToken: token } = req.body;
+
+    if (!token) {
+      return res.status(400).json({ message: "Refresh token is required" });
+    }
+
+    // Verify refresh token
+    const refreshSecret = process.env.REFRESH_TOKEN_SECRET || process.env.JWT_SECRET || "fallback-refresh-secret";
+    const decoded = jwt.verify(token, refreshSecret) as any;
+
+    // Check if user exists and is active
+    const user = await User.findById(decoded.id);
+    if (!user) {
+      return res.status(401).json({ message: "User not found" });
+    }
+
+    if (!user.isActive) {
+      return res.status(403).json({ message: "Account has been deactivated" });
+    }
+
+    // Generate new access token
+    const newAccessToken = generateToken((user._id as any).toString());
+
+    console.log(`✅ Access token refreshed for user: ${user.email}`);
+    res.status(200).json({
+      accessToken: newAccessToken,
+      message: "Token refreshed successfully"
+    });
+  } catch (error) {
+    if (error instanceof jwt.TokenExpiredError) {
+      return res.status(401).json({ 
+        message: "Refresh token expired", 
+        reason: "Please login again" 
+      });
+    } else if (error instanceof jwt.JsonWebTokenError) {
+      return res.status(401).json({ 
+        message: "Invalid refresh token", 
+        reason: "Please login again" 
+      });
+    }
+    console.error('Refresh token error:', error);
+    res.status(401).json({ message: "Invalid refresh token" });
+  }
+};
+
+// Logout All Sessions - Blacklist all tokens for a user (admin action or security breach)
+export const logoutAllSessions = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?._id;
+    
+    if (!userId) {
+      return res.status(400).json({ message: "User not found" });
+    }
+
+    // Create a special blacklist entry that invalidates all tokens for this user
+    await BlacklistedToken.create({
+      token: `ALL_TOKENS_${userId}`,
+      userId,
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+      reason: "admin-revoke"
+    });
+
+    console.log(`✅ All sessions invalidated for user: ${req.user.email}`);
+    res.status(200).json({ 
+      message: "All sessions have been logged out successfully",
+      reason: "Please login again on all devices"
+    });
+  } catch (error) {
+    console.error('Logout all sessions error:', error);
+    res.status(500).json({ message: "Failed to logout all sessions" });
+  }
+};
+
+// Get Current User Profile
+export const getCurrentUser = async (req: AuthRequest, res: Response) => {
+  try {
+    const user = req.user;
+    
+    if (!user) {
+      return res.status(401).json({ message: "User not found" });
+    }
+
+    res.status(200).json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      isStaff: user.isStaff,
+      isActive: user.isActive,
+      phone: user.phone,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt
+    });
+  } catch (error) {
+    console.error('Get current user error:', error);
+    res.status(500).json({ message: "Failed to get user profile" });
   }
 };

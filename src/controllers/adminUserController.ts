@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { User } from "../models/User.js";
 import Booking from "../models/Booking.js";
+import { create } from "domain";
 
 // 📘 Get all users (with optional filters)
 export const getAllUsers = async (req: Request, res: Response) => {
@@ -206,7 +207,7 @@ export const getStaffMembers = async (req: Request, res: Response) => {
     const query: any = { 
       $or: [
         { isStaff: true },
-        { role: "staff" }
+        { role: "staff" },
       ]
     };
 
@@ -216,7 +217,7 @@ export const getStaffMembers = async (req: Request, res: Response) => {
     }
 
     const staff = await User.find(query)
-      .select("name email phone isStaff role isActive")
+      .select("name email phone isStaff role isActive createdAt")
       .sort({ name: 1 });
 
     res.json({
