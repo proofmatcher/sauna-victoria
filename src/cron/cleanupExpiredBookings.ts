@@ -38,20 +38,23 @@ export const cleanupExpiredBookings = () => {
 
         // Restore seats to trip if this was a trip booking
         if (booking.trip) {
-          const trip = await Trip.findById(booking.trip);
+          const trip = await Trip.findById(booking.trip).populate('vessel');
           if (trip) {
             // Restore seats
             if (booking.seatsBooked) {
               trip.remainingSeats += booking.seatsBooked;
+              // Get capacity from associated vessel
+              const vesselCapacity = (trip.vessel as any)?.capacity || 8;
               // Ensure we don't exceed capacity
-              if (trip.remainingSeats > trip.capacity) {
-                trip.remainingSeats = trip.capacity;
+              if (trip.remainingSeats > vesselCapacity) {
+                trip.remainingSeats = vesselCapacity;
               }
             }
             
             // Only reset groupBooked if this booking had the full capacity
             // This prevents incorrectly resetting when individual bookings expire
-            if (trip.remainingSeats === trip.capacity) {
+            const vesselCapacity = (trip.vessel as any)?.capacity || 8;
+            if (trip.remainingSeats === vesselCapacity) {
               trip.groupBooked = false;
             }
             

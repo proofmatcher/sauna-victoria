@@ -9,19 +9,22 @@ export const createTrip = async (req: Request, res: Response) => {
     if (!vessel){
       return res.status(404).json({ message: "Vessel not found" });
     } 
-    const capacity = vessel.capacity ?? req.body.capacity ?? 8;
+    
+    // Capacity is now always derived from vessel - no need to store it in trip
+    const vesselCapacity = vessel.capacity || 8; // Default capacity if not set
+    
     const trip = await Trip.create({
       vessel: vessel._id,
       title: vessel.name + " Trip on " + new Date(departureTime).toDateString(),
       departureTime,
       durationMinutes: durationMinutes || 180,
-      capacity,
-      remainingSeats: capacity,
+      remainingSeats: vesselCapacity, // Initially, all seats are available
       assignedStaff: assignedStaff || [],  // Array of staff user IDs
       staffNotified: false,
     });
 
-    // Populate staff details for response
+    // Populate vessel and staff details for response (vessel needed for capacity virtual field)
+    await trip.populate("vessel", "name capacity type");
     await trip.populate("assignedStaff", "name email phone isStaff");
 
     // 🚀 Automatically send email notifications to assigned staff
@@ -45,10 +48,40 @@ export const createTrip = async (req: Request, res: Response) => {
 
 export const listTripsAdmin = async (req: Request, res: Response) => {
   const trips = await Trip.find()
-    .populate("vessel")
+    .populate("vessel", "name capacity type basePriceCents active") // Always populate vessel for capacity
     .populate("assignedStaff", "name email phone isStaff")
     .sort({ departureTime: 1 });
   res.json(trips);
+};
+
+export const getTripById = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    
+    if (!id) {
+      return res.status(400).json({ message: "Trip ID is required" });
+    }
+    
+    const trip = await Trip.findById(id)
+      .populate('vessel', 'name capacity type basePriceCents active')
+      .populate('assignedStaff', 'name email phone isStaff');
+      
+    if (!trip) {
+      return res.status(404).json({ message: "Trip not found" });
+    }
+    
+    // Get booking statistics
+    const { getTripBookingStats } = await import("../utils/capacityUtils.js");
+    const bookingStats = getTripBookingStats(trip);
+    
+    res.json({
+      ...trip.toObject(),
+      bookingStats
+    });
+  } catch (error) {
+    console.error('Error getting trip:', error);
+    res.status(500).json({ message: "Error retrieving trip", error: String(error) });
+  }
 };
 
 export const updateTrip = async (req: Request, res: Response) => {

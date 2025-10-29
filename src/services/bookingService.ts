@@ -32,8 +32,8 @@ export const createBooking = async ({
   }
   let trip;
   if (tripId) {
-    // First, fetch the trip to check availability
-    trip = await Trip.findById(tripId);
+    // First, fetch the trip to check availability - populate vessel to get capacity
+    trip = await Trip.findById(tripId).populate('vessel');
     if (!trip) {
       throw new Error("Trip not found");
     }
@@ -43,9 +43,12 @@ export const createBooking = async ({
       throw new Error("Trip is already booked by a group");
     }
 
+    // Get capacity from vessel - trip must be populated with vessel
+    const vesselCapacity = (trip.vessel as any)?.capacity || 8;
+    
     // For group bookings, check if ALL seats are available (not just some)
-    if (isGroup && trip.remainingSeats < trip.capacity) {
-      throw new Error(`Cannot book as group. ${trip.capacity - trip.remainingSeats} seats are already held by other bookings. Please wait or book individual seats.`);
+    if (isGroup && trip.remainingSeats < vesselCapacity) {
+      throw new Error(`Cannot book as group. ${vesselCapacity - trip.remainingSeats} seats are already held by other bookings. Please wait or book individual seats.`);
     }
 
     // For individual bookings, check seat availability
@@ -57,7 +60,7 @@ export const createBooking = async ({
     const query: any = { _id: tripId, groupBooked: false };
     if (isGroup) {
       // For group booking, require ALL seats to be available
-      query.remainingSeats = trip.capacity;
+      query.remainingSeats = vesselCapacity;
     } else {
       // For individual booking, just check enough seats
       query.remainingSeats = { $gte: seatsBooked };

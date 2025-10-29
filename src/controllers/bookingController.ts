@@ -63,20 +63,23 @@ export const cancelBooking = async (req: Request, res: Response) => {
 
   // restore seats if pending trip booking
   if (booking.status === "pending" && booking.trip) {
-    const trip = await Trip.findById(booking.trip);
+    const trip = await Trip.findById(booking.trip).populate('vessel');
     if (trip) {
       // Restore seats
       if (booking.seatsBooked) {
         trip.remainingSeats += booking.seatsBooked;
+        // Get capacity from associated vessel
+        const vesselCapacity = (trip.vessel as any)?.capacity || 8;
         // Ensure we don't exceed capacity
-        if (trip.remainingSeats > trip.capacity) {
-          trip.remainingSeats = trip.capacity;
+        if (trip.remainingSeats > vesselCapacity) {
+          trip.remainingSeats = vesselCapacity;
         }
       }
       
       // Reset group booking flag if this was a group booking
       // Check if this booking had booked all seats
-      if (trip.remainingSeats === trip.capacity) {
+      const vesselCapacity = (trip.vessel as any)?.capacity || 8;
+      if (trip.remainingSeats === vesselCapacity) {
         trip.groupBooked = false;
       }
       

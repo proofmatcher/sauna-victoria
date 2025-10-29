@@ -39,7 +39,7 @@ export const notifyStaffAboutTrip = async (tripId: string) => {
             <p><strong>Vessel:</strong> ${vessel.name} (${vessel.type})</p>
             <p><strong>Departure:</strong> ${tripDate}</p>
             <p><strong>Duration:</strong> ${duration} hour(s)</p>
-            <p><strong>Capacity:</strong> ${trip.capacity} passengers</p>
+            <p><strong>Capacity:</strong> ${vessel.capacity || 8} passengers</p>
           </div>
 
           <div style="margin: 20px 0;">

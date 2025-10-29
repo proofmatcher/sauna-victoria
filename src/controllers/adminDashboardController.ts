@@ -16,7 +16,7 @@ export const getDashboardStats = async (_req: Request, res: Response) => {
       Booking.countDocuments(),
       Booking.countDocuments({ status: "confirmed" }),
       Booking.countDocuments({ status: "cancelled" }),
-      Trip.find(),
+      Trip.find().populate('vessel', 'name capacity type'), // Populate vessel to get capacity
     ]);
 
     // Revenue = sum of confirmed bookings' totalPriceCents (convert to dollars)
@@ -28,15 +28,22 @@ export const getDashboardStats = async (_req: Request, res: Response) => {
     const totalRevenue = totalRevenueCents / 100; // Convert cents to dollars
 
     // Utilization: % of total booked seats per trip
-    const tripUtilization = trips.map((t) => ({
-      title: t.title,
-      capacity: t.capacity,
-      booked: t.capacity - t.remainingSeats,
-      utilization:
-        t.capacity > 0
-          ? Math.round(((t.capacity - t.remainingSeats) / t.capacity) * 100)
-          : 0,
-    }));
+    const tripUtilization = trips.map((t) => {
+      // Get capacity from associated vessel
+      const vesselCapacity = (t.vessel as any)?.capacity || 8;
+      const booked = vesselCapacity - t.remainingSeats;
+      const utilization = vesselCapacity > 0 
+        ? Math.round((booked / vesselCapacity) * 100) 
+        : 0;
+      
+      return {
+        title: t.title,
+        vesselName: (t.vessel as any)?.name || 'Unknown Vessel',
+        capacity: vesselCapacity,
+        booked: Math.max(0, booked), // Ensure non-negative
+        utilization,
+      };
+    });
 
     res.json({
       summary: {

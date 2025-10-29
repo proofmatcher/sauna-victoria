@@ -135,17 +135,19 @@ export const handlePaymentFailure = async (session: Stripe.Checkout.Session) => 
   if (booking.status === "pending") {
     // Restore seats if it's a trip booking
     if (booking.trip) {
-      const trip = await Trip.findById(booking.trip);
+      const trip = await Trip.findById(booking.trip).populate('vessel');
       if (trip) {
         if (booking.seatsBooked) {
           trip.remainingSeats += booking.seatsBooked;
-          if (trip.remainingSeats > trip.capacity) {
-            trip.remainingSeats = trip.capacity;
+          const vesselCapacity = (trip.vessel as any)?.capacity || 8;
+          if (trip.remainingSeats > vesselCapacity) {
+            trip.remainingSeats = vesselCapacity;
           }
         }
         
         // Reset group booking flag if capacity is fully restored
-        if (trip.remainingSeats === trip.capacity) {
+        const vesselCapacity = (trip.vessel as any)?.capacity || 8;
+        if (trip.remainingSeats === vesselCapacity) {
           trip.groupBooked = false;
         }
         

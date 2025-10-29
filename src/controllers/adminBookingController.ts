@@ -49,10 +49,11 @@ export const cancelBooking = async (req: Request, res: Response) => {
 
     // Restore seats if trip exists
     if (booking.trip) {
-      const trip = await Trip.findById(booking.trip);
+      const trip = await Trip.findById(booking.trip).populate('vessel');
       if (trip) {
         trip.remainingSeats += booking.seatsBooked || 0;
-        if (trip.remainingSeats > trip.capacity) trip.remainingSeats = trip.capacity;
+        const vesselCapacity = (trip.vessel as any)?.capacity || 8;
+        if (trip.remainingSeats > vesselCapacity) trip.remainingSeats = vesselCapacity;
         trip.groupBooked = false;
         await trip.save();
       }
