@@ -9,7 +9,8 @@ export interface IUser extends Document {
   role: string;
   isActive: boolean;
   isStaff: boolean;  // Flag to identify staff members
-  phone?: string;    // Optional phone for staff contact
+  phone?: string;    // Phone number for contact and booking deliveries
+  address?: string;  // Address for mobile sauna deliveries
   resetPasswordToken?: string | undefined;
   resetPasswordExpire?: Date | undefined;
 
@@ -25,7 +26,8 @@ const userSchema = new Schema<IUser>(
     role: { type: String, enum: ["user", "admin", "staff"], default: "user" },
     isActive: { type: Boolean, default: true },
     isStaff: { type: Boolean, default: false },  // Staff member flag
-    phone: { type: String },  // Optional contact number for staff
+    phone: { type: String },  // Phone number for contact and booking deliveries
+    address: { type: String }, // Address for mobile sauna deliveries
     resetPasswordToken: String,
     resetPasswordExpire: Date,
   },

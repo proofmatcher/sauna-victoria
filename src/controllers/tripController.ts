@@ -10,7 +10,29 @@ export const createTrip = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Vessel not found" });
     } 
     
-    // Capacity is now always derived from vessel - no need to store it in trip
+    // Handle mobile saunas differently from regular trips
+    if (vessel.type === 'mobile_sauna') {
+      // For mobile saunas, create an availability slot (not a scheduled departure)
+      const trip = await Trip.create({
+        vessel: vessel._id,
+        title: `${vessel.name} - Available for Rental`,
+        departureTime: new Date(), // Availability starts now
+        durationMinutes: 0, // No fixed duration - rental period set when booking
+        remainingSeats: 1, // Mobile sauna is rented as one unit
+        assignedStaff: assignedStaff || [],
+        staffNotified: false,
+      });
+
+      await trip.populate("vessel", "name capacity type basePriceCents minimumDays discountThreshold discountPercent");
+      await trip.populate("assignedStaff", "name email phone isStaff");
+
+      return res.status(201).json({
+        ...trip.toObject(),
+        note: "Mobile sauna availability slot created. Rental period will be determined when customers book."
+      });
+    }
+    
+    // For regular boats/trailers, use the standard trip format
     const vesselCapacity = vessel.capacity || 8; // Default capacity if not set
     
     const trip = await Trip.create({

@@ -1,11 +1,13 @@
 import { Response } from "express";
 import ServicePost from "../models/ServicePost.js";
 import { AuthRequest } from "../middleware/authMiddleware.js";
+import { isValidImageUrl, sanitizeImageUrl, deleteCloudinaryImage } from "../config/cloudinary.js";
 
 // 📝 Create a new service post (Admin only)
 export const createPost = async (req: AuthRequest, res: Response) => {
   try {
-    const { title, excerpt, content, readTime, category, image, featured, published } = req.body;
+    const { title, excerpt, content, readTime, category, featured, published } = req.body;
+    let { image } = req.body;
 
     // Validate required fields
     if (!title || !excerpt || !content) {
@@ -27,6 +29,26 @@ export const createPost = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ 
         message: "A post with this title already exists. Please use a different title." 
       });
+    }
+
+    // Handle image from file upload or URL
+    if (req.file) {
+      // Image uploaded via multipart/form-data
+      image = req.file.path; // Cloudinary URL
+    } else if (image) {
+      // Image provided as URL string
+      if (!isValidImageUrl(image)) {
+        return res.status(400).json({ 
+          message: "Invalid image URL format. Please provide a valid image URL or upload an image file." 
+        });
+      }
+      try {
+        image = sanitizeImageUrl(image);
+      } catch (error) {
+        return res.status(400).json({ 
+          message: "Failed to process image URL. Please check the URL format." 
+        });
+      }
     }
 
     const post = await ServicePost.create({
@@ -133,11 +155,43 @@ export const getPostById = async (req: AuthRequest, res: Response) => {
 export const updatePost = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { title, excerpt, content, readTime, category, image, featured, published } = req.body;
+    const { title, excerpt, content, readTime, category, featured, published } = req.body;
+    let { image } = req.body;
 
     const post = await ServicePost.findById(id);
     if (!post) {
       return res.status(404).json({ message: "Post not found" });
+    }
+
+    const oldImage = post.image;
+    let imageUpdated = false;
+
+    // Handle image update from file upload or URL
+    if (req.file) {
+      // New image uploaded via multipart/form-data
+      image = req.file.path; // Cloudinary URL
+      imageUpdated = true;
+    } else if (image !== undefined) {
+      // Image provided as URL string or null to remove
+      if (image === null || image === '') {
+        // Remove image
+        imageUpdated = true;
+      } else {
+        // Validate and sanitize new image URL
+        if (!isValidImageUrl(image)) {
+          return res.status(400).json({ 
+            message: "Invalid image URL format. Please provide a valid image URL or upload an image file." 
+          });
+        }
+        try {
+          image = sanitizeImageUrl(image);
+          imageUpdated = true;
+        } catch (error) {
+          return res.status(400).json({ 
+            message: "Failed to process image URL. Please check the URL format." 
+          });
+        }
+      }
     }
 
     // Update fields
@@ -146,11 +200,16 @@ export const updatePost = async (req: AuthRequest, res: Response) => {
     if (content) post.content = content;
     if (readTime) post.readTime = readTime;
     if (category) post.category = category;
-    if (image !== undefined) post.image = image;
+    if (imageUpdated) post.image = image;
     if (featured !== undefined) post.featured = featured;
     if (published !== undefined) post.published = published;
 
     await post.save();
+
+    // Delete old Cloudinary image if it was replaced and was a Cloudinary URL
+    if (imageUpdated && oldImage && oldImage.includes('cloudinary.com')) {
+      await deleteCloudinaryImage(oldImage);
+    }
 
     const updatedPost = await ServicePost.findById(id).populate("author", "name email");
 
@@ -169,10 +228,17 @@ export const deletePost = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
 
-    const post = await ServicePost.findByIdAndDelete(id);
+    const post = await ServicePost.findById(id);
     if (!post) {
       return res.status(404).json({ message: "Post not found" });
     }
+
+    // Delete associated Cloudinary image if exists
+    if (post.image && post.image.includes('cloudinary.com')) {
+      await deleteCloudinaryImage(post.image);
+    }
+
+    await ServicePost.findByIdAndDelete(id);
 
     res.json({ message: "Post deleted successfully" });
   } catch (err) {

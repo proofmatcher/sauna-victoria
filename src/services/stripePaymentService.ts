@@ -39,7 +39,7 @@ export const createCheckoutSession = async (
             ? `${vessel.name} - Trip on ${new Date(trip.departureTime).toLocaleDateString()}`
             : `${vessel.name} - Rental`,
           description: trip
-            ? `${booking.seatsBooked} seat(s) for ${trip.durationMinutes} minutes`
+            ? `1 seat Booked`
             : `Rental from ${booking.startTime?.toLocaleString()} to ${booking.endTime?.toLocaleString()}`,
         },
         unit_amount: Math.round(booking.totalPriceCents), // Stripe expects amount in cents
@@ -98,6 +98,27 @@ export const handlePaymentSuccess = async (session: Stripe.Checkout.Session) => 
   // Update booking status to confirmed
   booking.status = "confirmed";
   booking.stripeSessionId = session.id;
+
+  // For mobile sauna bookings, set the rental period starting now
+  if (booking.daysBooked && booking.daysBooked > 0) {
+    // Check if this is a mobile sauna booking by populating vessel
+    await booking.populate('vessel');
+    const vessel = booking.vessel as any;
+    
+    if (vessel && vessel.type === 'mobile_sauna') {
+      const rentalStartTime = new Date(); // Rental starts when payment is confirmed
+      const rentalEndTime = new Date(rentalStartTime);
+      rentalEndTime.setDate(rentalEndTime.getDate() + booking.daysBooked);
+      
+      booking.startTime = rentalStartTime;
+      booking.endTime = rentalEndTime;
+      
+      console.log(`🚀 Mobile sauna rental activated: ${vessel.name}`);
+      console.log(`📅 Rental period: ${rentalStartTime.toISOString()} to ${rentalEndTime.toISOString()}`);
+      console.log(`🏠 Delivery address: ${booking.deliveryAddress}`);
+    }
+  }
+
   await booking.save();
 
   // Send confirmation email to customer (async, don't wait)

@@ -1,0 +1,10 @@
+import { Response } from "express";
+import { AuthRequest } from "../middleware/authMiddleware.js";
+export declare const createPost: (req: AuthRequest, res: Response) => Promise<Response<any, Record<string, any>> | undefined>;
+export declare const getAllPosts: (req: AuthRequest, res: Response) => Promise<void>;
+export declare const getPostById: (req: AuthRequest, res: Response) => Promise<Response<any, Record<string, any>> | undefined>;
+export declare const updatePost: (req: AuthRequest, res: Response) => Promise<Response<any, Record<string, any>> | undefined>;
+export declare const deletePost: (req: AuthRequest, res: Response) => Promise<Response<any, Record<string, any>> | undefined>;
+export declare const toggleFeatured: (req: AuthRequest, res: Response) => Promise<Response<any, Record<string, any>> | undefined>;
+export declare const togglePublished: (req: AuthRequest, res: Response) => Promise<Response<any, Record<string, any>> | undefined>;
+export declare const getPostStats: (req: AuthRequest, res: Response) => Promise<void>;

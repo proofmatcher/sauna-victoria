@@ -1,2 +1,6 @@
 export declare const generateToken: (id: string) => string;
-//# sourceMappingURL=generateToken.d.ts.map
+export declare const generateRefreshToken: (id: string) => string;
+export declare const generateTokenPair: (id: string) => {
+    accessToken: string;
+    refreshToken: string;
+};

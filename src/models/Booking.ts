@@ -2,15 +2,22 @@ import mongoose, { Document } from "mongoose";
 
 export interface IBooking extends Document {
   user?: mongoose.Types.ObjectId;
-  trip?: mongoose.Types.ObjectId;     // null for trailer free-form rentals
+  trip?: mongoose.Types.ObjectId;     // null for trailer/mobile sauna rentals
   vessel: mongoose.Types.ObjectId;
-  seatsBooked?: number;              // for trip bookings
-  startTime?: Date;                  // for trailer rental start
-  endTime?: Date;                    // for trailer rental end
+  seatsBooked?: number;              // for trip bookings (not used for mobile saunas)
+  startTime?: Date;                  // for trailer/mobile sauna rental start
+  endTime?: Date;                    // for trailer/mobile sauna rental end
   totalPriceCents: number;
   status: "pending" | "confirmed" | "cancelled";
   holdExpiresAt?: Date;
   stripeSessionId?: string;
+  // Mobile sauna specific fields
+  deliveryAddress?: string;          // delivery address for mobile saunas
+  customerPhone?: string;            // customer phone for delivery coordination
+  customerName?: string;             // customer full name for delivery
+  daysBooked?: number;               // number of days for mobile sauna rental
+  rulesAgreed?: boolean;             // customer agreed to rules
+  waiverSigned?: boolean;            // customer signed waiver
 }
 
 const bookingSchema = new mongoose.Schema<IBooking>({
@@ -24,6 +31,13 @@ const bookingSchema = new mongoose.Schema<IBooking>({
   status: { type: String, enum: ["pending","confirmed","cancelled"], default: "pending" },
   holdExpiresAt: Date,
   stripeSessionId: String,
+  // Mobile sauna specific fields
+  deliveryAddress: String,
+  customerPhone: String,
+  customerName: String,
+  daysBooked: Number,
+  rulesAgreed: { type: Boolean, default: false },
+  waiverSigned: { type: Boolean, default: false },
 }, { timestamps: true });
 
 export default mongoose.model<IBooking>("Booking", bookingSchema);

@@ -38,42 +38,53 @@ export const createBooking = async ({
       throw new Error("Trip not found");
     }
 
-    // Check if trip is available
-    if (trip.groupBooked) {
-      throw new Error("Trip is already booked by a group");
-    }
-
-    // Get capacity from vessel - trip must be populated with vessel
-    const vesselCapacity = (trip.vessel as any)?.capacity || 8;
+    // Check vessel type to handle mobile saunas differently
+    const vesselType = (trip.vessel as any)?.type;
     
-    // For group bookings, check if ALL seats are available (not just some)
-    if (isGroup && trip.remainingSeats < vesselCapacity) {
-      throw new Error(`Cannot book as group. ${vesselCapacity - trip.remainingSeats} seats are already held by other bookings. Please wait or book individual seats.`);
-    }
-
-    // For individual bookings, check seat availability
-    if (!isGroup && trip.remainingSeats < seatsBooked) {
-      throw new Error(`Not enough seats available. Only ${trip.remainingSeats} seats remaining`);
-    }
-
-    // Now atomically update the trip
-    const query: any = { _id: tripId, groupBooked: false };
-    if (isGroup) {
-      // For group booking, require ALL seats to be available
-      query.remainingSeats = vesselCapacity;
+    if (vesselType === 'mobile_sauna') {
+      // For mobile saunas, don't modify trip capacity - each booking is independent
+      // Mobile saunas have unlimited availability slots, capacity refers to people accommodation
+      // No need to update remainingSeats for mobile saunas
     } else {
-      // For individual booking, just check enough seats
-      query.remainingSeats = { $gte: seatsBooked };
+      // Handle regular boat/trailer trips with seat management
+      // Check if trip is available
+      if (trip.groupBooked) {
+        throw new Error("Trip is already booked by a group");
+      }
+
+      // Get capacity from vessel - trip must be populated with vessel
+      const vesselCapacity = (trip.vessel as any)?.capacity || 8;
+      
+      // For group bookings, check if ALL seats are available (not just some)
+      if (isGroup && trip.remainingSeats < vesselCapacity) {
+        throw new Error(`Cannot book as group. ${vesselCapacity - trip.remainingSeats} seats are already held by other bookings. Please wait or book individual seats.`);
+      }
+
+      // For individual bookings, check seat availability
+      if (!isGroup && trip.remainingSeats < seatsBooked) {
+        throw new Error(`Not enough seats available. Only ${trip.remainingSeats} seats remaining`);
+      }
+
+      // Now atomically update the trip (only for non-mobile saunas)
+      const query: any = { _id: tripId, groupBooked: false };
+      if (isGroup) {
+        // For group booking, require ALL seats to be available
+        query.remainingSeats = vesselCapacity;
+      } else {
+        // For individual booking, just check enough seats
+        query.remainingSeats = { $gte: seatsBooked };
+      }
+      
+      const update: any = isGroup
+        ? { $set: { groupBooked: true, remainingSeats: 0 } }
+        : { $inc: { remainingSeats: -seatsBooked } };
+
+      trip = await Trip.findOneAndUpdate(query, update, { new: true });
     }
     
-    const update: any = isGroup
-      ? { $set: { groupBooked: true, remainingSeats: 0 } }
-      : { $inc: { remainingSeats: -seatsBooked } };
-
-    trip = await Trip.findOneAndUpdate(query, update, { new: true });
-    
-    if (!trip) {
+    if (!trip && vesselType !== 'mobile_sauna') {
       // This should rarely happen due to pre-checks, but handle race conditions
+      // Only throw error for non-mobile saunas since they don't update trip
       throw new Error("Failed to reserve seats. Trip may have been booked by someone else. Please try again.");
     }
   }

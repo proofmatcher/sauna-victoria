@@ -2,8 +2,26 @@ import { Request, Response } from "express";
 import Vessel from "../models/Vessel.js";
 
 export const createVessel = async (req: Request, res: Response) => {
-  const { name, type, capacity, basePriceCents } = req.body;
-  const vessel = await Vessel.create({ name, type, capacity, basePriceCents });
+  const { 
+    name, 
+    type, 
+    capacity, 
+    basePriceCents, 
+    minimumDays, 
+    discountThreshold, 
+    discountPercent 
+  } = req.body;
+  
+  const vessel = await Vessel.create({ 
+    name, 
+    type, 
+    capacity, 
+    basePriceCents,
+    minimumDays,
+    discountThreshold,
+    discountPercent
+  });
+  
   res.status(201).json(vessel);
 };
 

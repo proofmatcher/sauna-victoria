@@ -6,14 +6,19 @@ import {
   cancelBooking,
   initiatePayment,
   checkPaymentStatus,
+  createMobileSaunaBooking,
 } from "../controllers/bookingController.js";
 
 const router = express.Router();
 
+// Regular booking routes (trips, trailers)
 router.post("/createBooking", protect, createBookingController); // Reserve booking
 router.get("/me", protect, getMyBookings);          // View my bookings
 router.put("/cancel/:id", protect, cancelBooking);  // Cancel pending booking
 router.post("/initiate-payment", protect, initiatePayment); // Create Stripe checkout session
 router.get("/payment-status/:bookingId", protect, checkPaymentStatus); // Check payment status
+
+// Mobile sauna booking route (works through trips)
+router.post("/mobile-sauna", protect, createMobileSaunaBooking);  // Create mobile sauna booking (protected)
 
 export default router;
