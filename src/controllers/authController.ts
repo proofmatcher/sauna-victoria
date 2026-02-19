@@ -65,18 +65,61 @@ export const registerUser = async (req: Request, res: Response) => {
     console.log(`✅ Auto-set isStaff=true for user ${user.email}`);
   }
 
-  const tokens = generateTokenPair((user._id as any).toString());
+  // Generate email verification token
+  const verificationToken = user.getEmailVerificationToken();
+  await user.save({ validateBeforeSave: false });
 
-  res.status(201).json({
-    _id: user._id,
-    name: user.name,
-    email: user.email,
-    role: user.role,
-    isStaff: user.isStaff,
-    accessToken: tokens.accessToken,
-    refreshToken: tokens.refreshToken,
-    message: "User registered successfully"
-  });
+  // Send verification email
+  try {
+    const verificationURL = `${process.env.FRONTEND_URL}/verify-email/${verificationToken}`;
+    const emailHtml = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #8b5a2b 0%, #a0522d 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+          <h1 style="color: white; margin: 0;">Welcome to Our Platform!</h1>
+        </div>
+        <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+          <h2 style="color: #333;">Hi ${user.name},</h2>
+          <p style="color: #666; font-size: 16px; line-height: 1.6;">
+            Thank you for registering! To complete your registration and access your account, 
+            please verify your email address by clicking the button below:
+          </p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${verificationURL}" 
+               style="background: #8b4513; color: white; padding: 15px 40px; text-decoration: none; 
+                      border-radius: 8px; font-weight: 600; display: inline-block;">
+              Verify Email Address
+            </a>
+          </div>
+          <p style="color: #999; font-size: 14px;">
+            Or copy and paste this link into your browser:<br/>
+            <a href="${verificationURL}" style="color: #8b4513; word-break: break-all;">${verificationURL}</a>
+          </p>
+          <p style="color: #999; font-size: 14px; margin-top: 30px;">
+            This verification link will expire in 24 hours.
+          </p>
+          <p style="color: #999; font-size: 14px;">
+            If you didn't create an account, please ignore this email.
+          </p>
+        </div>
+      </div>
+    `;
+
+    await sendEmail(user.email, "Verify Your Email Address", emailHtml);
+    console.log(`✅ Verification email sent to ${user.email}`);
+
+    res.status(201).json({
+      message: "Registration successful! Please check your email to verify your account.",
+      email: user.email,
+      requiresVerification: true
+    });
+  } catch (error) {
+    console.error('Failed to send verification email:', error);
+    // Delete user if email fails
+    await User.findByIdAndDelete(user._id);
+    res.status(500).json({ 
+      message: "Failed to send verification email. Please try registering again." 
+    });
+  }
 };
 
 // Login User
@@ -93,6 +136,14 @@ export const loginUser = async (req: Request, res: Response) => {
     const user = await User.findOne({ email }).select("+password");
     if (!user) {
       return res.status(400).json({ message: "Invalid credentials" });
+    }
+
+    // Check if email is verified
+    if (!user.isEmailVerified) {
+      return res.status(403).json({ 
+        message: "Please verify your email address before logging in. Check your inbox for the verification link.",
+        requiresVerification: true 
+      });
     }
 
     // Check if user is active
@@ -129,6 +180,132 @@ export const loginUser = async (req: Request, res: Response) => {
     res.status(500).json({ message: "Login failed" });
   }
 };
+
+// Verify Email
+export const verifyEmail = async (req: Request, res: Response) => {
+  const { token } = req.params;
+
+  if (!token) {
+    return res.status(400).json({ message: "Verification token is required" });
+  }
+
+  try {
+    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+
+    // First, try to find user with this token
+    const user = await User.findOne({
+      emailVerificationToken: hashedToken,
+      emailVerificationExpire: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      // Check if token exists but is expired or already used
+      const expiredUser = await User.findOne({
+        emailVerificationToken: hashedToken,
+      });
+
+      if (expiredUser) {
+        // Token expired
+        return res.status(400).json({ 
+          message: "Verification link has expired. Please request a new verification email.",
+          expired: true
+        });
+      }
+
+      // Token not found - might be already verified or invalid
+      // Let's check by trying to find any user who might have used this token
+      // Since we can't reverse hash, we'll just return a generic message
+      return res.status(400).json({ 
+        message: "Invalid or expired verification token. If you've already verified your email, you can proceed to login.",
+        expired: true
+      });
+    }
+
+    // Mark email as verified
+    user.isEmailVerified = true;
+    user.emailVerificationToken = undefined;
+    user.emailVerificationExpire = undefined;
+    await user.save();
+
+    console.log(`✅ Email verified successfully for user: ${user.email}`);
+    
+    res.status(200).json({
+      message: "Email verified successfully! You can now login to your account.",
+      verified: true,
+      email: user.email
+    });
+  } catch (error) {
+    console.error('Email verification error:', error);
+    res.status(500).json({ message: "Email verification failed" });
+  }
+};
+
+// Resend Verification Email
+export const resendVerificationEmail = async (req: Request, res: Response) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ message: "Email is required" });
+  }
+
+  try {
+    const user = await User.findOne({ email });
+    
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (user.isEmailVerified) {
+      return res.status(400).json({ message: "Email is already verified" });
+    }
+
+    // Generate new verification token
+    const verificationToken = user.getEmailVerificationToken();
+    await user.save({ validateBeforeSave: false });
+
+    // Send verification email
+    const verificationURL = `${process.env.FRONTEND_URL}/verify-email/${verificationToken}`;
+    const emailHtml = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #8b5a2b 0%, #a0522d 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+          <h1 style="color: white; margin: 0;">Email Verification</h1>
+        </div>
+        <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+          <h2 style="color: #333;">Hi ${user.name},</h2>
+          <p style="color: #666; font-size: 16px; line-height: 1.6;">
+            You requested a new verification email. Please click the button below to verify your email address:
+          </p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${verificationURL}" 
+               style="background: #8b4513; color: white; padding: 15px 40px; text-decoration: none; 
+                      border-radius: 8px; font-weight: 600; display: inline-block;">
+              Verify Email Address
+            </a>
+          </div>
+          <p style="color: #999; font-size: 14px;">
+            Or copy and paste this link into your browser:<br/>
+            <a href="${verificationURL}" style="color: #8b4513; word-break: break-all;">${verificationURL}</a>
+          </p>
+          <p style="color: #999; font-size: 14px; margin-top: 30px;">
+            This verification link will expire in 24 hours.
+          </p>
+        </div>
+      </div>
+    `;
+
+    await sendEmail(user.email, "Verify Your Email Address", emailHtml);
+    console.log(`✅ Verification email resent to ${user.email}`);
+
+    res.status(200).json({
+      message: "Verification email sent successfully. Please check your inbox.",
+      email: user.email
+    });
+  } catch (error) {
+    console.error('Resend verification email error:', error);
+    res.status(500).json({ message: "Failed to send verification email" });
+  }
+};
+
 // Forgot Password
 export const forgotPassword = async (req: Request, res: Response) => {
   const { email } = req.body;
@@ -340,6 +517,7 @@ export const getCurrentUser = async (req: AuthRequest, res: Response) => {
       role: user.role,
       isStaff: user.isStaff,
       isActive: user.isActive,
+      isEmailVerified: user.isEmailVerified,
       phone: user.phone,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt

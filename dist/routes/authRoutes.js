@@ -2,13 +2,15 @@ import express from "express";
 import { protect } from "../middleware/authMiddleware.js";
 import { authorize } from "../middleware/roleMiddleware.js";
 import { loginRateLimiter, passwordResetRateLimiter, registrationRateLimiter } from "../middleware/rateLimitMiddleware.js";
-import { registerUser, loginUser, forgotPassword, resetPassword, logoutUser, refreshToken, logoutAllSessions, getCurrentUser, } from "../controllers/authController.js";
+import { registerUser, loginUser, forgotPassword, resetPassword, logoutUser, refreshToken, logoutAllSessions, getCurrentUser, verifyEmail, resendVerificationEmail, } from "../controllers/authController.js";
 const router = express.Router();
 // Public routes (with rate limiting)
 router.post("/register", registrationRateLimiter, registerUser);
 router.post("/login", loginRateLimiter, loginUser);
 router.post("/forgot-password", passwordResetRateLimiter, forgotPassword);
 router.post("/reset-password/:token", resetPassword);
+router.get("/verify-email/:token", verifyEmail);
+router.post("/resend-verification", passwordResetRateLimiter, resendVerificationEmail);
 // Token management routes
 router.post("/refresh-token", refreshToken);
 // Protected routes (require authentication)

@@ -16,6 +16,8 @@ import {
   refreshToken,
   logoutAllSessions,
   getCurrentUser,
+  verifyEmail,
+  resendVerificationEmail,
 } from "../controllers/authController.js";
 
 const router = express.Router();
@@ -25,6 +27,8 @@ router.post("/register", registrationRateLimiter, registerUser);
 router.post("/login", loginRateLimiter, loginUser);
 router.post("/forgot-password", passwordResetRateLimiter, forgotPassword);
 router.post("/reset-password/:token", resetPassword);
+router.get("/verify-email/:token", verifyEmail);
+router.post("/resend-verification", passwordResetRateLimiter, resendVerificationEmail);
 
 // Token management routes
 router.post("/refresh-token", refreshToken);

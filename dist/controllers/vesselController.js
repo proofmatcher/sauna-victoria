@@ -1,14 +1,17 @@
 import Vessel from "../models/Vessel.js";
 export const createVessel = async (req, res) => {
-    const { name, type, capacity, basePriceCents, minimumDays, discountThreshold, discountPercent } = req.body;
+    const { name, type, capacity, inventory, basePriceCents, minimumDays, discountThreshold, discountPercent, pickupDropoffDay, pricingTiers } = req.body;
     const vessel = await Vessel.create({
         name,
         type,
         capacity,
+        inventory: inventory || 1, // Default to 1 if not provided
         basePriceCents,
         minimumDays,
         discountThreshold,
-        discountPercent
+        discountPercent,
+        pickupDropoffDay,
+        pricingTiers
     });
     res.status(201).json(vessel);
 };

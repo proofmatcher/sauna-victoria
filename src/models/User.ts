@@ -11,11 +11,15 @@ export interface IUser extends Document {
   isStaff: boolean;  // Flag to identify staff members
   phone?: string;    // Phone number for contact and booking deliveries
   address?: string;  // Address for mobile sauna deliveries
+  isEmailVerified: boolean;  // Email verification status
+  emailVerificationToken?: string | undefined;
+  emailVerificationExpire?: Date | undefined;
   resetPasswordToken?: string | undefined;
   resetPasswordExpire?: Date | undefined;
 
   comparePassword(enteredPassword: string): Promise<boolean>;
   getResetPasswordToken(): string;
+  getEmailVerificationToken(): string;
 }
 
 const userSchema = new Schema<IUser>(
@@ -28,6 +32,9 @@ const userSchema = new Schema<IUser>(
     isStaff: { type: Boolean, default: false },  // Staff member flag
     phone: { type: String },  // Phone number for contact and booking deliveries
     address: { type: String }, // Address for mobile sauna deliveries
+    isEmailVerified: { type: Boolean, default: false },  // Email verification status
+    emailVerificationToken: String,
+    emailVerificationExpire: Date,
     resetPasswordToken: String,
     resetPasswordExpire: Date,
   },
@@ -51,6 +58,13 @@ userSchema.methods.getResetPasswordToken = function () {
   const token = crypto.randomBytes(32).toString("hex");
   this.resetPasswordToken = crypto.createHash("sha256").update(token).digest("hex");
   this.resetPasswordExpire = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
+  return token;
+};
+
+userSchema.methods.getEmailVerificationToken = function () {
+  const token = crypto.randomBytes(32).toString("hex");
+  this.emailVerificationToken = crypto.createHash("sha256").update(token).digest("hex");
+  this.emailVerificationExpire = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
   return token;
 };
 

@@ -11,6 +11,10 @@ interface CreateBookingInput {
   startTime?: Date;
   endTime?: Date;
   isGroup?: boolean;
+  // Customer information (for boat/trailer bookings)
+  customerName?: string;
+  customerEmail?: string;
+  customerPhone?: string;
 }
 
 /**
@@ -25,6 +29,9 @@ export const createBooking = async ({
   startTime,
   endTime,
   isGroup = false,
+  customerName,
+  customerEmail,
+  customerPhone,
 }: CreateBookingInput) => {
   const vessel = await Vessel.findById(vesselId);
   if (!vessel) {
@@ -106,6 +113,10 @@ export const createBooking = async ({
     totalPriceCents,
     status: "pending",
     holdExpiresAt: new Date(Date.now() + holdTime * 60 * 1000), // hold time in minutes
+    // Customer information
+    customerName,
+    customerEmail,
+    customerPhone,
   });
   
   return booking;

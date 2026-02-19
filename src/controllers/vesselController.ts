@@ -5,21 +5,27 @@ export const createVessel = async (req: Request, res: Response) => {
   const { 
     name, 
     type, 
-    capacity, 
+    capacity,
+    inventory,
     basePriceCents, 
     minimumDays, 
     discountThreshold, 
-    discountPercent 
+    discountPercent,
+    pickupDropoffDay,
+    pricingTiers
   } = req.body;
   
   const vessel = await Vessel.create({ 
     name, 
     type, 
-    capacity, 
+    capacity,
+    inventory: inventory || 1, // Default to 1 if not provided
     basePriceCents,
     minimumDays,
     discountThreshold,
-    discountPercent
+    discountPercent,
+    pickupDropoffDay,
+    pricingTiers
   });
   
   res.status(201).json(vessel);

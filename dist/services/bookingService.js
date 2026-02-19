@@ -6,7 +6,7 @@ import Vessel from "../models/Vessel.js";
  * Reserve seats or create trailer rental booking
  * This function ensures atomic update of remaining seats for trips.
  */
-export const createBooking = async ({ userId, tripId, vesselId, seatsBooked = 1, startTime, endTime, isGroup = false, }) => {
+export const createBooking = async ({ userId, tripId, vesselId, seatsBooked = 1, startTime, endTime, isGroup = false, customerName, customerEmail, customerPhone, }) => {
     const vessel = await Vessel.findById(vesselId);
     if (!vessel) {
         throw new Error("Vessel not found");
@@ -77,6 +77,10 @@ export const createBooking = async ({ userId, tripId, vesselId, seatsBooked = 1,
         totalPriceCents,
         status: "pending",
         holdExpiresAt: new Date(Date.now() + holdTime * 60 * 1000), // hold time in minutes
+        // Customer information
+        customerName,
+        customerEmail,
+        customerPhone,
     });
     return booking;
 };

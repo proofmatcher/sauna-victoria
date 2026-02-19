@@ -1,0 +1,29 @@
+{
+  "name": "migrate-db",
+  "version": "1.0.0",
+  "type": "commonjs",
+  "main": "migrate-database.js",
+  "scripts": {
+    "check": "npx ts-node --transpile-only check-schema.ts",
+    "migrate": "npx ts-node --transpile-only migrate-database.ts",
+    "migrate:prod": "NODE_ENV=production npx ts-node --transpile-only migrate-database.ts"
+  },
+  "ts-node": {
+    "esm": false,
+    "transpileOnly": true,
+    "compilerOptions": {
+      "module": "commonjs",
+      "target": "es2020",
+      "moduleResolution": "node"
+    }
+  },
+  "dependencies": {
+    "mongoose": "^7.5.0",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.5.0",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.0.0"
+  }
+}

@@ -10,6 +10,9 @@ const userSchema = new Schema({
     isStaff: { type: Boolean, default: false }, // Staff member flag
     phone: { type: String }, // Phone number for contact and booking deliveries
     address: { type: String }, // Address for mobile sauna deliveries
+    isEmailVerified: { type: Boolean, default: false }, // Email verification status
+    emailVerificationToken: String,
+    emailVerificationExpire: Date,
     resetPasswordToken: String,
     resetPasswordExpire: Date,
 }, { timestamps: true });
@@ -27,6 +30,12 @@ userSchema.methods.getResetPasswordToken = function () {
     const token = crypto.randomBytes(32).toString("hex");
     this.resetPasswordToken = crypto.createHash("sha256").update(token).digest("hex");
     this.resetPasswordExpire = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
+    return token;
+};
+userSchema.methods.getEmailVerificationToken = function () {
+    const token = crypto.randomBytes(32).toString("hex");
+    this.emailVerificationToken = crypto.createHash("sha256").update(token).digest("hex");
+    this.emailVerificationExpire = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
     return token;
 };
 export const User = mongoose.model("User", userSchema);

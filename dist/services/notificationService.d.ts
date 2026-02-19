@@ -12,6 +12,12 @@ export declare const notifyCustomerBookingConfirmed: (bookingId: string) => Prom
     success: boolean;
 }>;
 /**
+ * Send mobile sauna booking confirmation email with delivery and rental details
+ */
+export declare const notifyCustomerMobileSaunaBookingConfirmed: (bookingId: string) => Promise<{
+    success: boolean;
+}>;
+/**
  * Send trip reminder to both staff and customers (24 hours before trip)
  */
 export declare const sendTripReminders: (tripId: string) => Promise<{

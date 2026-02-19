@@ -2,6 +2,8 @@ import type { Request, Response } from "express";
 import type { AuthRequest } from "../middleware/authMiddleware.js";
 export declare const registerUser: (req: Request, res: Response) => Promise<Response<any, Record<string, any>> | undefined>;
 export declare const loginUser: (req: Request, res: Response) => Promise<Response<any, Record<string, any>> | undefined>;
+export declare const verifyEmail: (req: Request, res: Response) => Promise<Response<any, Record<string, any>> | undefined>;
+export declare const resendVerificationEmail: (req: Request, res: Response) => Promise<Response<any, Record<string, any>> | undefined>;
 export declare const forgotPassword: (req: Request, res: Response) => Promise<Response<any, Record<string, any>> | undefined>;
 export declare const resetPassword: (req: Request, res: Response) => Promise<Response<any, Record<string, any>> | undefined>;
 export declare const logoutUser: (req: AuthRequest, res: Response) => Promise<Response<any, Record<string, any>> | undefined>;

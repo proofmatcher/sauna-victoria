@@ -14,9 +14,33 @@ const bookingSchema = new mongoose.Schema({
     deliveryAddress: String,
     customerPhone: String,
     customerName: String,
+    customerEmail: String,
+    customerBirthdate: Date,
     daysBooked: Number,
     rulesAgreed: { type: Boolean, default: false },
     waiverSigned: { type: Boolean, default: false },
+    // Delivery fee fields
+    deliveryDistanceKm: Number,
+    deliveryFeeCents: Number,
+    // Wood bins fields
+    additionalWoodBins: { type: Number, default: 0, min: 0, max: 10 },
+    woodBinsCostCents: Number,
+    // Rental Agreement fields
+    agreementVersion: String,
+    agreementAcceptedAt: Date,
+    agreementIpAddress: String,
+    agreementPdfUrl: String,
+    damageDepositCents: { type: Number, default: 25000 }, // $250.00 default
+    damageDepositStatus: {
+        type: String,
+        enum: ['held', 'refunded', 'forfeited'],
+        default: 'held'
+    },
+    damageDepositRefundId: String,
+    damageDepositRefundDate: Date,
+    damageDepositNotes: String,
+    stripePaymentIntentId: String,
+    rentalPriceCents: Number,
 }, { timestamps: true });
 export default mongoose.model("Booking", bookingSchema);
 //# sourceMappingURL=Booking.js.map

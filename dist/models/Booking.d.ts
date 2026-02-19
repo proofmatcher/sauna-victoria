@@ -13,9 +13,26 @@ export interface IBooking extends Document {
     deliveryAddress?: string;
     customerPhone?: string;
     customerName?: string;
+    customerEmail?: string;
+    customerBirthdate?: Date;
     daysBooked?: number;
     rulesAgreed?: boolean;
     waiverSigned?: boolean;
+    deliveryDistanceKm?: number;
+    deliveryFeeCents?: number;
+    additionalWoodBins?: number;
+    woodBinsCostCents?: number;
+    agreementVersion?: string;
+    agreementAcceptedAt?: Date;
+    agreementIpAddress?: string;
+    agreementPdfUrl?: string;
+    damageDepositCents?: number;
+    damageDepositStatus?: 'held' | 'refunded' | 'forfeited';
+    damageDepositRefundId?: string;
+    damageDepositRefundDate?: Date;
+    damageDepositNotes?: string;
+    stripePaymentIntentId?: string;
+    rentalPriceCents?: number;
 }
 declare const _default: mongoose.Model<IBooking, {}, {}, {}, mongoose.Document<unknown, {}, IBooking, {}, {}> & IBooking & Required<{
     _id: unknown;

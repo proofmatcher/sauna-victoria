@@ -3,11 +3,13 @@ export interface IVessel extends Document {
     name: string;
     type: "boat" | "trailer" | "mobile_sauna";
     capacity?: number;
+    inventory?: number;
     basePriceCents: number;
     active: boolean;
     minimumDays?: number;
     discountThreshold?: number;
     discountPercent?: number;
+    pickupDropoffDay?: number;
     pricingTiers?: {
         days1to3: number;
         day4: number;

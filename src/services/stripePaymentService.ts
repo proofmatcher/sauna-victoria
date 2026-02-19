@@ -98,6 +98,14 @@ export const handlePaymentSuccess = async (session: Stripe.Checkout.Session) => 
   // Update booking status to confirmed
   booking.status = "confirmed";
   booking.stripeSessionId = session.id;
+  
+  // Store PaymentIntent ID for future refunds (damage deposit)
+  if (session.payment_intent) {
+    booking.stripePaymentIntentId = typeof session.payment_intent === 'string' 
+      ? session.payment_intent 
+      : session.payment_intent.id;
+    console.log(`💳 Stored PaymentIntent ID: ${booking.stripePaymentIntentId}`);
+  }
 
   // For mobile sauna bookings, set the rental period starting now
   if (booking.daysBooked && booking.daysBooked > 0) {
@@ -121,12 +129,66 @@ export const handlePaymentSuccess = async (session: Stripe.Checkout.Session) => 
 
   await booking.save();
 
+  // Generate and save agreement PDF for mobile sauna bookings
+  try {
+    await booking.populate('vessel');
+    const vessel = booking.vessel as any;
+    
+    if (vessel && vessel.type === 'mobile_sauna') {
+      // Format capacity: if integer, convert to "X person" format
+      let capacityStr = '4 person'; // Default fallback
+      if (vessel.capacity) {
+        if (typeof vessel.capacity === 'number') {
+          capacityStr = `${vessel.capacity} person`;
+        } else if (typeof vessel.capacity === 'string') {
+          capacityStr = vessel.capacity.toLowerCase().includes('person') 
+            ? vessel.capacity 
+            : `${vessel.capacity} person`;
+        }
+      } else if (vessel.name) {
+        capacityStr = vessel.name;
+      }
+
+      const bookingAgreementService = (await import("./bookingAgreementService.js")).default;
+      await bookingAgreementService.generateAndSaveBookingAgreement({
+        bookingId: (booking._id as any).toString(),
+        customerName: booking.customerName || 'Customer',
+        deliveryAddress: booking.deliveryAddress || '',
+        customerEmail: booking.customerEmail || '',
+        customerPhone: booking.customerPhone || '',
+        agreementDate: new Date().toISOString().split('T')[0],
+        capacity: capacityStr,
+        dropoffDate: booking.startTime ? new Date(booking.startTime).toISOString().split('T')[0] : '',
+        pickupDate: booking.endTime ? new Date(booking.endTime).toISOString().split('T')[0] : '',
+        rentalFee: booking.totalPriceCents ? `$${(booking.totalPriceCents / 100).toFixed(2)}` : '',
+        ipAddress: session.customer_details?.address?.country || 'Unknown'
+      });
+      console.log(`📄 Agreement PDF generated and saved for booking: ${(booking._id as any).toString()}`);
+    }
+  } catch (err) {
+    console.error("Failed to generate agreement PDF:", err);
+    // Don't fail the payment if PDF generation fails
+  }
+
   // Send confirmation email to customer (async, don't wait)
   try {
-    const { notifyCustomerBookingConfirmed } = await import("./notificationService.js");
-    notifyCustomerBookingConfirmed(bookingId).catch(err => 
-      console.error("Failed to send customer notification:", err)
-    );
+    // Check if this is a mobile sauna booking
+    await booking.populate('vessel');
+    const vessel = booking.vessel as any;
+    
+    if (vessel && vessel.type === 'mobile_sauna') {
+      // Use mobile sauna specific email template
+      const { notifyCustomerMobileSaunaBookingConfirmed } = await import("./notificationService.js");
+      notifyCustomerMobileSaunaBookingConfirmed(bookingId).catch(err => 
+        console.error("Failed to send mobile sauna notification:", err)
+      );
+    } else {
+      // Use regular boat trip email template
+      const { notifyCustomerBookingConfirmed } = await import("./notificationService.js");
+      notifyCustomerBookingConfirmed(bookingId).catch(err => 
+        console.error("Failed to send customer notification:", err)
+      );
+    }
   } catch (err) {
     console.error("Failed to import notification service:", err);
   }

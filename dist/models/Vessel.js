@@ -3,11 +3,13 @@ const vesselSchema = new mongoose.Schema({
     name: { type: String, required: true },
     type: { type: String, enum: ["boat", "trailer", "mobile_sauna"], required: true },
     capacity: { type: Number },
+    inventory: { type: Number, default: 1, min: 1 }, // Default 1 unit, minimum 1
     basePriceCents: { type: Number, default: 0 },
     active: { type: Boolean, default: true },
     minimumDays: { type: Number }, // minimum rental days for mobile saunas
     discountThreshold: { type: Number }, // days threshold for discount (7+ days)
     discountPercent: { type: Number }, // discount percentage (20% for Large Luxury)
+    pickupDropoffDay: { type: Number, default: 5, min: 0, max: 6 }, // Default Friday (5), configurable per vessel
     // Tiered pricing for mobile saunas
     pricingTiers: {
         days1to3: { type: Number }, // Total price for 1-3 days rental (cents)
