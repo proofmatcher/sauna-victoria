@@ -41,29 +41,38 @@ const validatePassword = (password: string): { isValid: boolean; message?: strin
 export const registerUser = async (req: Request, res: Response) => {
   const { name, email, password, role } = req.body;
 
+  // IMPORTANT: Public registration is disabled
+  // Only admin accounts can be created through this endpoint
+  // Staff members should be created via /api/admin/staff endpoint
+  if (role && role !== 'admin') {
+    return res.status(403).json({ 
+      message: "Public registration is disabled. Please contact an administrator.",
+      hint: "Staff members are created by admins. Guests don't need accounts."
+    });
+  }
+
   const existingUser = await User.findOne({ email });
   if (existingUser) {
     return res.status(400).json({ message: "User already exists" });
   }
+  
   // Validate password strength
   const { isValid, message } = validatePassword(password);
   if (!isValid) {
     return res.status(400).json({ message });
   }
 
+  // Ensure password is provided for admin
+  if (!password) {
+    return res.status(400).json({ message: "Password is required for admin accounts" });
+  }
+
   const user = await User.create({
     name,
     email,
     password,
-    role: role || "user",
+    role: 'admin', // Force admin role for this endpoint
   });
-
-  // Auto-set isStaff flag if role is "staff"
-  if (user.role === "staff") {
-    user.isStaff = true;
-    await user.save();
-    console.log(`✅ Auto-set isStaff=true for user ${user.email}`);
-  }
 
   // Generate email verification token
   const verificationToken = user.getEmailVerificationToken();
@@ -136,6 +145,15 @@ export const loginUser = async (req: Request, res: Response) => {
     const user = await User.findOne({ email }).select("+password");
     if (!user) {
       return res.status(400).json({ message: "Invalid credentials" });
+    }
+
+    // IMPORTANT: Only admins can log in with password
+    // Staff and regular users should not have login access
+    if (user.role !== 'admin') {
+      return res.status(403).json({ 
+        message: "Login is only available for administrators. Guests use email verification for bookings.",
+        adminOnly: true
+      });
     }
 
     // Check if email is verified

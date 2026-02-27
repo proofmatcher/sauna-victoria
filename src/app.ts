@@ -8,6 +8,8 @@ import cors from 'cors';
 
 import { connectDB } from './config/db.js';
 import authRoutes from './routes/authRoutes.js';
+import guestAuthRoutes from './routes/guestAuthRoutes.js';
+import staffRoutes from './routes/staffRoutes.js';
 import vesselRoutes from './routes/vesselRoutes.js';
 import tripRoutes from './routes/tripRoutes.js';
 import publicRoutes from './routes/publicRoutes.js';
@@ -53,7 +55,12 @@ app.use(express.urlencoded({ extended: true })); // Also parse URL-encoded bodie
 cleanupExpiredBookings(); // Start the cron job
 scheduleDepositRefunds(); // Start deposit refund cron job
 
+// Authentication routes
 app.use('/api/auth', authRoutes);
+app.use('/api/guest', guestAuthRoutes); // Guest OTP authentication
+app.use('/api/staff', staffRoutes); // Staff management (admin + public verification)
+
+// Resource routes
 app.use('/api/vessels', vesselRoutes);
 app.use('/api/trips', tripRoutes);
 app.use('/api/public', publicRoutes);

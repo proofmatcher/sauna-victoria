@@ -4,7 +4,7 @@ import Trip from "../models/Trip.js";
 import Vessel from "../models/Vessel.js";
 
 interface CreateBookingInput {
-  userId: string;
+  userId: string | null; // Can be null for guest bookings
   tripId?: string;
   vesselId: string;
   seatsBooked?: number;
@@ -104,7 +104,7 @@ export const createBooking = async ({
   const holdTime = Math.max(holdMinutes, 30); // Ensure minimum 30 minutes for Stripe compatibility
 
   const booking = await Booking.create({
-    user: new mongoose.Types.ObjectId(userId),
+    user: userId ? new mongoose.Types.ObjectId(userId) : undefined, // null for guest bookings
     trip: trip ? trip._id : undefined,
     vessel: vessel._id,
     seatsBooked,

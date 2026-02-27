@@ -5,7 +5,7 @@ import crypto from "crypto";
 export interface IUser extends Document {
   name: string;
   email: string;
-  password: string;
+  password?: string;  // Optional - only required for admin role
   role: string;
   isActive: boolean;
   isStaff: boolean;  // Flag to identify staff members
@@ -26,7 +26,11 @@ const userSchema = new Schema<IUser>(
   {
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
-    password: { type: String, required: true, select: false },
+    password: { 
+      type: String, 
+      required: false, 
+      select: false
+    },
     role: { type: String, enum: ["user", "admin", "staff"], default: "user" },
     isActive: { type: Boolean, default: true },
     isStaff: { type: Boolean, default: false },  // Staff member flag
@@ -41,8 +45,17 @@ const userSchema = new Schema<IUser>(
   { timestamps: true }
 );
 
+// Validate that admin users must have a password
 userSchema.pre("save", async function (next) {
-  if (!this.isModified("password")){
+  if (this.role === 'admin' && !this.password) {
+    throw new Error('Password is required for admin users');
+  }
+  next();
+});
+
+userSchema.pre("save", async function (next) {
+  // Skip password hashing if password is not modified or not provided
+  if (!this.isModified("password") || !this.password){
     return next();
   }
   this.password = await bcrypt.hash(this.password, 10);

@@ -12,7 +12,7 @@
     "allowSyntheticDefaultImports": true,
     "sourceMap": true,
     "declaration": true,
-    "types": ["node"],
+    "types": ["node", "jest"],
     "resolveJsonModule": true
   },
   "include": ["src/**/*"],

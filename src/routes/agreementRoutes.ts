@@ -4,7 +4,7 @@ import {
   generateAgreementPDF,
   getAgreementInfo,
 } from '../controllers/agreementController.js';
-import { protect } from '../middleware/authMiddleware.js';
+import { protect, verifyGuestOrAdmin } from '../middleware/authMiddleware.js';
 
 const router = Router();
 
@@ -18,17 +18,17 @@ router.get('/info', getAgreementInfo);
 /**
  * @route   POST /api/agreement/preview
  * @desc    Generate HTML preview of agreement (for modal display during booking)
- * @access  Protected - must be authenticated
+ * @access  Protected - authenticated user or verified guest
  * @body    { customerName, deliveryAddress, customerEmail, customerPhone, agreementDate, capacity }
  */
-router.post('/preview', protect, generateAgreementPreview);
+router.post('/preview', verifyGuestOrAdmin, generateAgreementPreview);
 
 /**
  * @route   POST /api/agreement/pdf
  * @desc    Generate and download PDF agreement (admin use or post-booking)
- * @access  Protected - must be authenticated
+ * @access  Protected - authenticated user or verified guest
  * @body    { customerName, deliveryAddress, customerEmail, customerPhone, agreementDate, capacity }
  */
-router.post('/pdf', protect, generateAgreementPDF);
+router.post('/pdf', verifyGuestOrAdmin, generateAgreementPDF);
 
 export default router;

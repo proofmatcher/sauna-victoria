@@ -59,7 +59,7 @@ export const getAllBookings = async (req: Request, res: Response) => {
     if (userId) query.user = userId;
 
     const bookings = await Booking.find(query)
-      .populate("user", "name email")
+      .populate({ path: "user", select: "name email", strictPopulate: false }) // Guest bookings have null user
       .populate("trip", "title type startTime")
       .populate("vessel", "name type capacity");
     
@@ -120,7 +120,7 @@ export const cancelBooking = async (req: Request, res: Response) => {
 export const getBookingById = async (req: Request, res: Response) => {
   try {
     const booking = await Booking.findById(req.params.id)
-      .populate("user", "name email")
+      .populate({ path: "user", select: "name email", strictPopulate: false }) // Guest bookings have null user
       .populate("trip", "title type startTime")
       .populate("vessel", "name type capacity pricingTiers");
     if (!booking) return res.status(404).json({ message: "Booking not found" });

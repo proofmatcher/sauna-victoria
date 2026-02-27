@@ -16,7 +16,7 @@ export const forfeitDeposit = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Reason for forfeiting deposit is required' });
     }
 
-    const booking = await Booking.findById(id).populate('vessel user');
+    const booking = await Booking.findById(id).populate('vessel').populate({ path: 'user', strictPopulate: false });
 
     if (!booking) {
       return res.status(404).json({ error: 'Booking not found' });
@@ -62,7 +62,7 @@ export const manualRefundDeposit = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    const booking = await Booking.findById(id).populate('vessel user');
+    const booking = await Booking.findById(id).populate('vessel').populate({ path: 'user', strictPopulate: false });
 
     if (!booking) {
       return res.status(404).json({ error: 'Booking not found' });
@@ -183,7 +183,7 @@ export const triggerRefundCheck = async (req: Request, res: Response) => {
       damageDepositStatus: 'held',
       status: { $nin: ['cancelled'] },
       stripePaymentIntentId: { $exists: true, $ne: null },
-    }).populate('vessel user');
+    }).populate('vessel').populate({ path: 'user', strictPopulate: false });
     
     console.log(`📋 Found ${eligibleBookings.length} deposit(s) eligible for refund`);
     

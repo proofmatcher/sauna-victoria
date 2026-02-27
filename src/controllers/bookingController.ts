@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { AuthRequest } from "../middleware/authMiddleware.js";
 import { createBooking } from "../services/bookingService.js";
 import Booking from "../models/Booking.js";
 import Trip from "../models/Trip.js";
@@ -55,9 +56,9 @@ async function checkVesselAvailability(
 
 /**
  * Reserve a booking (trip or trailer)
+ * Supports both guest and admin bookings
  */
-export const createBookingController = async (req: Request, res: Response) => {
-  const userId = (req as any).user._id;
+export const createBookingController = async (req: AuthRequest, res: Response) => {
   const { 
     tripId, 
     vesselId, 
@@ -71,6 +72,20 @@ export const createBookingController = async (req: Request, res: Response) => {
   } = req.body;
 
   try {
+    // Determine user ID and customer email based on authentication type
+    let userId: string | null = null;
+    let finalCustomerEmail = customerEmail;
+    
+    if (req.isGuest) {
+      // Guest booking - no user account
+      userId = null;
+      finalCustomerEmail = req.guestEmail || customerEmail; // Use verified guest email
+    } else if (req.user) {
+      // Admin creating booking
+      userId = req.user._id.toString();
+      finalCustomerEmail = customerEmail || req.user.email; // Use provided email or admin's email
+    }
+
     const booking = await createBooking({
       userId,
       tripId,
@@ -80,7 +95,7 @@ export const createBookingController = async (req: Request, res: Response) => {
       endTime,
       isGroup,
       customerName,
-      customerEmail,
+      customerEmail: finalCustomerEmail,
       customerPhone,
     });
 
@@ -163,12 +178,20 @@ export const cancelBooking = async (req: Request, res: Response) => {
  * Creates a Stripe Checkout session
  */
 export const initiatePayment = async (req: Request, res: Response) => {
-  const userId = (req as any).user._id;
   const { bookingId, successUrl, cancelUrl } = req.body;
 
   try {
-    // Verify booking belongs to user
-    const booking = await Booking.findOne({ _id: bookingId, user: userId });
+    // Verify booking belongs to user (admin) or guest email matches
+    let booking;
+    if ((req as any).isGuest) {
+      // Guest booking - match by booking ID and email
+      const guestEmail = (req as any).guestEmail;
+      booking = await Booking.findOne({ _id: bookingId, customerEmail: guestEmail });
+    } else if ((req as any).user) {
+      // Admin booking - match by booking ID and user ID
+      const userId = (req as any).user._id;
+      booking = await Booking.findOne({ _id: bookingId, user: userId });
+    }
     
     if (!booking) {
       return res.status(404).json({ message: "Booking not found" });
@@ -210,7 +233,6 @@ export const initiatePayment = async (req: Request, res: Response) => {
  * Verify payment status for a booking
  */
 export const checkPaymentStatus = async (req: Request, res: Response) => {
-  const userId = (req as any).user._id;
   const bookingId = req.params.bookingId;
 
   if (!bookingId) {
@@ -218,8 +240,17 @@ export const checkPaymentStatus = async (req: Request, res: Response) => {
   }
 
   try {
-    // Verify booking belongs to user
-    const booking = await Booking.findOne({ _id: bookingId, user: userId });
+    // Verify booking belongs to user (admin) or guest email matches
+    let booking;
+    if ((req as any).isGuest) {
+      // Guest booking - match by booking ID and email
+      const guestEmail = (req as any).guestEmail;
+      booking = await Booking.findOne({ _id: bookingId, customerEmail: guestEmail });
+    } else if ((req as any).user) {
+      // Admin booking - match by booking ID and user ID
+      const userId = (req as any).user._id;
+      booking = await Booking.findOne({ _id: bookingId, user: userId });
+    }
     
     if (!booking) {
       return res.status(404).json({ message: "Booking not found" });
@@ -243,7 +274,6 @@ export const checkPaymentStatus = async (req: Request, res: Response) => {
  * Now accepts startDate and endDate instead of days
  */
 export const createMobileSaunaBooking = async (req: Request, res: Response) => {
-  const userId = (req as any).user._id;
   const { 
     tripId,
     startDate,
@@ -259,6 +289,20 @@ export const createMobileSaunaBooking = async (req: Request, res: Response) => {
   } = req.body;
 
   try {
+    // Determine user ID and customer email based on authentication type
+    let userId: string | null = null;
+    let finalCustomerEmail = customerEmail;
+    
+    if ((req as any).isGuest) {
+      // Guest booking - no user account
+      userId = null;
+      finalCustomerEmail = (req as any).guestEmail || customerEmail; // Use verified guest email
+    } else if ((req as any).user) {
+      // Admin creating booking
+      userId = (req as any).user._id.toString();
+      finalCustomerEmail = customerEmail || (req as any).user.email; // Use provided email or admin's email
+    }
+
     // Validation for mobile sauna bookings
     if (!tripId || !startDate || !endDate || !customerName || !customerEmail || !customerBirthdate || !customerPhone || !deliveryAddress) {
       return res.status(400).json({ 
@@ -449,15 +493,17 @@ export const createMobileSaunaBooking = async (req: Request, res: Response) => {
     // Initially set startTime and endTime to null - they will be set when payment is confirmed
     const bookingTime = new Date(); // When user made the booking request
 
-    // Update user profile with delivery information
-    await User.findByIdAndUpdate(userId, {
-      phone: customerPhone,
-      address: deliveryAddress
-    });
+    // Update user profile with delivery information (only if admin booking for a user)
+    if (userId) {
+      await User.findByIdAndUpdate(userId, {
+        phone: customerPhone,
+        address: deliveryAddress
+      });
+    }
 
     // Create mobile sauna booking with selected dates
     const booking = await Booking.create({
-      user: new mongoose.Types.ObjectId(userId),
+      user: userId ? new mongoose.Types.ObjectId(userId) : null,
       trip: trip._id,
       vessel: vessel._id,
       startTime: pickupDate, // Selected pick-up date
@@ -466,7 +512,7 @@ export const createMobileSaunaBooking = async (req: Request, res: Response) => {
       status: "pending",
       daysBooked: days,
       customerName,
-      customerEmail,
+      customerEmail: finalCustomerEmail,
       customerBirthdate: new Date(customerBirthdate),
       customerPhone,
       deliveryAddress,
@@ -864,7 +910,6 @@ export const getMobileSaunaPricingPreview = async (req: Request, res: Response) 
  * Called after user reviews agreement modal and clicks "I agree"
  */
 export const acceptBookingAgreement = async (req: Request, res: Response) => {
-  const userId = (req as any).user._id;
   const { bookingId } = req.body;
 
   try {
@@ -872,8 +917,17 @@ export const acceptBookingAgreement = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "bookingId is required" });
     }
 
-    // Verify booking belongs to user
-    const booking = await Booking.findOne({ _id: bookingId, user: userId });
+    // Verify booking belongs to user (admin) or guest email matches
+    let booking;
+    if ((req as any).isGuest) {
+      // Guest booking - match by booking ID and email
+      const guestEmail = (req as any).guestEmail;
+      booking = await Booking.findOne({ _id: bookingId, customerEmail: guestEmail });
+    } else if ((req as any).user) {
+      // Admin booking - match by booking ID and user ID
+      const userId = (req as any).user._id;
+      booking = await Booking.findOne({ _id: bookingId, user: userId });
+    }
     
     if (!booking) {
       return res.status(404).json({ message: "Booking not found" });
@@ -911,5 +965,78 @@ export const acceptBookingAgreement = async (req: Request, res: Response) => {
     });
   } catch (err: any) {
     res.status(400).json({ message: err.message });
+  }
+};
+
+/**
+ * Lookup booking by email and booking ID (for guests)
+ * Public endpoint - no authentication required
+ */
+export const lookupBooking = async (req: Request, res: Response) => {
+  try {
+    const { email, bookingId } = req.body;
+
+    if (!email || !bookingId) {
+      return res.status(400).json({ 
+        message: 'Email and booking ID are required' 
+      });
+    }
+
+    // Validate bookingId format
+    if (!mongoose.Types.ObjectId.isValid(bookingId)) {
+      return res.status(404).json({ 
+        message: 'Booking not found' 
+      });
+    }
+
+    // Find booking by ID and email
+    const booking: any = await Booking.findOne({
+      _id: bookingId,
+      customerEmail: email.toLowerCase().trim()
+    })
+      .populate('trip')
+      .populate('vessel')
+      .populate('user', 'name email')
+      .lean();
+
+    if (!booking) {
+      return res.status(404).json({ 
+        message: 'Booking not found. Please check your email and booking ID.' 
+      });
+    }
+
+    // Return booking details (safe for guests)
+    res.json({
+      success: true,
+      booking: {
+        _id: booking._id,
+        bookingId: booking._id,
+        customerName: booking.customerName,
+        customerEmail: booking.customerEmail,
+        customerPhone: booking.customerPhone,
+        trip: booking.trip,
+        vessel: booking.vessel,
+        startTime: booking.startTime,
+        endTime: booking.endTime,
+        numberOfSeats: booking.numberOfSeats,
+        isGroup: booking.isGroup,
+        totalAmount: booking.totalAmount,
+        status: booking.status,
+        paymentStatus: booking.paymentStatus,
+        rulesAgreed: booking.rulesAgreed,
+        waiverSigned: booking.waiverSigned,
+        createdAt: booking.createdAt,
+        // Mobile sauna specific fields
+        deliveryAddress: booking.deliveryAddress,
+        additionalWoodBins: booking.additionalWoodBins,
+        deliveryFee: booking.deliveryFee,
+        woodBinsFee: booking.woodBinsFee
+      }
+    });
+  } catch (err: any) {
+    console.error('Lookup booking error:', err);
+    res.status(500).json({ 
+      message: 'Failed to lookup booking. Please try again.' 
+    });
   }
 };
