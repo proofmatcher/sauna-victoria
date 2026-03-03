@@ -80,7 +80,7 @@ export const submitContactForm = async (req: Request, res: Response): Promise<vo
             <p>If you have any urgent concerns or need immediate assistance, please feel free to call us at <strong>(555) 123-4567</strong>.</p>
 
             <div class="footer">
-              <p><strong>Sauna Boat Co.</strong><br>
+              <p><strong>Victoria Mobile Sauna Rentals</strong><br>
               Vancouver Island, BC<br>
               📧 hello@saunaboatco.com | 📞 (555) 123-4567</p>
             </div>

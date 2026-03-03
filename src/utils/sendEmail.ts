@@ -69,7 +69,7 @@ export const sendEmail = async (
     }
 
     const mailOptions: any = {
-      from: `"Victoria Sauna Rentals" <${emailUser}>`,
+      from: `"Victoria Mobile Sauna Rentals" <${emailUser}>`,
       to,
       subject,
       html,
