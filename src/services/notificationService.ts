@@ -229,7 +229,7 @@ export const notifyCustomerMobileSaunaBookingConfirmed = async (bookingId: strin
       <h3 style="color: #2c3e50; margin-top: 30px;">Mobile Sauna Rental Agreement</h3>
       <div style="background-color: #f9f9f9; padding: 20px; border-left: 4px solid #3498db; font-size: 14px; line-height: 1.6;">
         <p><strong>This Agreement is made on:</strong> ${new Date().toLocaleDateString()}</p>
-        <p><strong>Between:</strong> HAVN SUNAS ("Renter") and ${customerName} ("Customer")</p>
+        <p><strong>Between:</strong> Victoria Mobile Sauna Rentals ("Renter") and ${customerName} ("Customer")</p>
         
         <h4>Rental Details:</h4>
         <ul style="margin: 10px 0;">
@@ -274,7 +274,7 @@ export const notifyCustomerMobileSaunaBookingConfirmed = async (bookingId: strin
 
         <p style="font-size: 16px; line-height: 1.6; margin-bottom: 30px;">
           If you have any questions, please feel free to contact us by email at 
-          <a href="mailto:info@example.com" style="color: #3498db;">info@example.com</a>
+          <a href="mailto:Info@victoriasaunarentals.ca" style="color: #3498db;">Info@victoriasaunarentals.ca</a>
         </p>
 
         <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 25px 0;">
@@ -345,7 +345,7 @@ export const notifyCustomerMobileSaunaBookingConfirmed = async (bookingId: strin
             This confirmation was sent to ${customerEmail}
           </p>
           <p style="font-size: 12px; color: #999; margin: 5px 0;">
-            HAVN SUNAS - Mobile Sauna Rentals
+            Victoria Mobile Sauna Rentals - Mobile Sauna Rentals
           </p>
         </div>
       </div>

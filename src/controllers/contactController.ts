@@ -82,7 +82,7 @@ export const submitContactForm = async (req: Request, res: Response): Promise<vo
             <div class="footer">
               <p><strong>Victoria Mobile Sauna Rentals</strong><br>
               Vancouver Island, BC<br>
-              📧 hello@saunaboatco.com | 📞 (555) 123-4567</p>
+              📧 Info@victoriasaunarentals.ca</p>
             </div>
           </div>
         </div>
@@ -154,7 +154,7 @@ export const submitContactForm = async (req: Request, res: Response): Promise<vo
     `;
 
     // Send to admin email (configured in env)
-    const adminEmail = process.env.ADMIN_EMAIL || 'hello@saunaboatco.com';
+    const adminEmail = process.env.ADMIN_EMAIL || 'hello@victoriasaunarentals.ca';
     await sendEmail(
       adminEmail,
       `🆕 New Contact Form: ${subject}`,

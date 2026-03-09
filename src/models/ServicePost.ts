@@ -7,6 +7,11 @@ export interface IServicePost extends Document {
   readTime: string;
   category: string;
   image?: string;
+  imageVariants?: {
+    mobile: string;
+    tablet: string;
+    desktop: string;
+  };
   featured: boolean;
   published: boolean;
   author: mongoose.Types.ObjectId;
@@ -48,6 +53,11 @@ const servicePostSchema = new Schema<IServicePost>(
     image: { 
       type: String,
       default: null
+    },
+    imageVariants: {
+      mobile: { type: String },
+      tablet: { type: String },
+      desktop: { type: String },
     },
     featured: { 
       type: Boolean, 

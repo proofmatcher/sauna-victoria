@@ -161,7 +161,7 @@ export const updateBooking = async (req: Request, res: Response) => {
 
       // Validate new dates
       const pickupDay = vessel.pickupDropoffDay !== undefined ? vessel.pickupDropoffDay : 5;
-      const dateValidation = validateRentalDates(newStartDate, newEndDate, pickupDay);
+      const dateValidation = validateRentalDates(newStartDate, newEndDate, pickupDay, vessel.enforceWeeklyBoundary ?? false);
       
       if (!dateValidation.isValid) {
         return res.status(400).json({ 
@@ -328,7 +328,7 @@ export const extendRental = async (req: Request, res: Response) => {
 
     // Validate extended date follows pickup day rules
     const pickupDay = vessel.pickupDropoffDay !== undefined ? vessel.pickupDropoffDay : 5;
-    const dateValidation = validateRentalDates(new Date(booking.startTime!), extendedEndDate, pickupDay);
+    const dateValidation = validateRentalDates(new Date(booking.startTime!), extendedEndDate, pickupDay, vessel.enforceWeeklyBoundary ?? false);
     
     if (!dateValidation.isValid) {
       return res.status(400).json({ 

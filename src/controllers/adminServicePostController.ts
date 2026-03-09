@@ -1,13 +1,19 @@
 import { Response } from "express";
 import ServicePost from "../models/ServicePost.js";
 import { AuthRequest } from "../middleware/authMiddleware.js";
-import { isValidImageUrl, sanitizeImageUrl, deleteCloudinaryImage } from "../config/cloudinary.js";
+import {
+  isValidImageUrl,
+  sanitizeImageUrl,
+  processUploadedImage,
+  deleteImageFiles,
+} from "../config/imageUpload.js";
 
 // 📝 Create a new service post (Admin only)
 export const createPost = async (req: AuthRequest, res: Response) => {
   try {
     const { title, excerpt, content, readTime, category, featured, published } = req.body;
-    let { image } = req.body;
+    let image: string | undefined;
+    let imageVariants: { mobile: string; tablet: string; desktop: string } | undefined;
 
     // Validate required fields
     if (!title || !excerpt || !content) {
@@ -33,17 +39,19 @@ export const createPost = async (req: AuthRequest, res: Response) => {
 
     // Handle image from file upload or URL
     if (req.file) {
-      // Image uploaded via multipart/form-data
-      image = req.file.path; // Cloudinary URL
-    } else if (image) {
+      // Image uploaded via multipart/form-data → process with sharp
+      const processed = await processUploadedImage(req.file.path, slug);
+      image = processed.image;
+      imageVariants = processed.imageVariants;
+    } else if (req.body.image) {
       // Image provided as URL string
-      if (!isValidImageUrl(image)) {
+      if (!isValidImageUrl(req.body.image)) {
         return res.status(400).json({ 
           message: "Invalid image URL format. Please provide a valid image URL or upload an image file." 
         });
       }
       try {
-        image = sanitizeImageUrl(image);
+        image = sanitizeImageUrl(req.body.image);
       } catch (error) {
         return res.status(400).json({ 
           message: "Failed to process image URL. Please check the URL format." 
@@ -58,6 +66,7 @@ export const createPost = async (req: AuthRequest, res: Response) => {
       readTime: readTime || "5 min read",
       category: category || "general",
       image,
+      imageVariants: imageVariants || undefined,
       featured: featured || false,
       published: published || false,
       author: req.user?._id,
@@ -156,7 +165,6 @@ export const updatePost = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const { title, excerpt, content, readTime, category, featured, published } = req.body;
-    let { image } = req.body;
 
     const post = await ServicePost.findById(id);
     if (!post) {
@@ -164,27 +172,39 @@ export const updatePost = async (req: AuthRequest, res: Response) => {
     }
 
     const oldImage = post.image;
+    const oldVariants = post.imageVariants;
     let imageUpdated = false;
+    let newImage: string | undefined | null;
+    let newVariants: { mobile: string; tablet: string; desktop: string } | undefined;
 
     // Handle image update from file upload or URL
     if (req.file) {
-      // New image uploaded via multipart/form-data
-      image = req.file.path; // Cloudinary URL
+      // New image uploaded via multipart/form-data → process with sharp
+      // Use the existing slug for SEO-friendly filenames
+      const postSlug = title
+        ? title.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').trim()
+        : post.slug;
+      const processed = await processUploadedImage(req.file.path, postSlug);
+      newImage = processed.image;
+      newVariants = processed.imageVariants;
       imageUpdated = true;
-    } else if (image !== undefined) {
+    } else if (req.body.image !== undefined) {
       // Image provided as URL string or null to remove
-      if (image === null || image === '') {
+      if (req.body.image === null || req.body.image === '') {
         // Remove image
+        newImage = null;
+        newVariants = undefined;
         imageUpdated = true;
       } else {
         // Validate and sanitize new image URL
-        if (!isValidImageUrl(image)) {
+        if (!isValidImageUrl(req.body.image)) {
           return res.status(400).json({ 
             message: "Invalid image URL format. Please provide a valid image URL or upload an image file." 
           });
         }
         try {
-          image = sanitizeImageUrl(image);
+          newImage = sanitizeImageUrl(req.body.image);
+          newVariants = undefined; // External URLs don't have local variants
           imageUpdated = true;
         } catch (error) {
           return res.status(400).json({ 
@@ -200,15 +220,18 @@ export const updatePost = async (req: AuthRequest, res: Response) => {
     if (content) post.content = content;
     if (readTime) post.readTime = readTime;
     if (category) post.category = category;
-    if (imageUpdated) post.image = image;
+    if (imageUpdated) {
+      post.image = newImage as any;
+      post.imageVariants = newVariants as any;
+    }
     if (featured !== undefined) post.featured = featured;
     if (published !== undefined) post.published = published;
 
     await post.save();
 
-    // Delete old Cloudinary image if it was replaced and was a Cloudinary URL
-    if (imageUpdated && oldImage && oldImage.includes('cloudinary.com')) {
-      await deleteCloudinaryImage(oldImage);
+    // Delete old image files if the image was replaced
+    if (imageUpdated && oldImage) {
+      deleteImageFiles(oldImage, oldVariants);
     }
 
     const updatedPost = await ServicePost.findById(id).populate("author", "name email");
@@ -233,9 +256,9 @@ export const deletePost = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ message: "Post not found" });
     }
 
-    // Delete associated Cloudinary image if exists
-    if (post.image && post.image.includes('cloudinary.com')) {
-      await deleteCloudinaryImage(post.image);
+    // Delete associated image files
+    if (post.image) {
+      deleteImageFiles(post.image, post.imageVariants);
     }
 
     await ServicePost.findByIdAndDelete(id);

@@ -1,7 +1,13 @@
 import agreementService from './agreementService.js';
 import Booking from '../models/Booking.js';
-import { v2 as cloudinary } from 'cloudinary';
-import { Readable } from 'stream';
+import path from 'path';
+import fs from 'fs';
+
+// Ensure agreements directory exists
+const AGREEMENTS_DIR = path.resolve(process.cwd(), 'uploads', 'agreements');
+if (!fs.existsSync(AGREEMENTS_DIR)) {
+  fs.mkdirSync(AGREEMENTS_DIR, { recursive: true });
+}
 
 interface BookingAgreementData {
   bookingId: string;
@@ -36,11 +42,9 @@ export class BookingAgreementService {
       rentalFee: data.rentalFee,
     });
 
-    // Upload to Cloudinary
-    const pdfUrl = await this.uploadPDFToCloudinary(
-      pdfBuffer,
-      `agreement-${data.bookingId}-${Date.now()}.pdf`
-    );
+    // Save PDF to local disk
+    const filename = `agreement-${data.bookingId}-${Date.now()}.pdf`;
+    const pdfUrl = await this.savePDFToDisk(pdfBuffer, filename);
 
     // Update booking with agreement info
     await Booking.findByIdAndUpdate(data.bookingId, {
@@ -54,29 +58,12 @@ export class BookingAgreementService {
   }
 
   /**
-   * Upload PDF to Cloudinary
+   * Save PDF to local disk
    */
-  private async uploadPDFToCloudinary(pdfBuffer: Buffer, filename: string): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const uploadStream = cloudinary.uploader.upload_stream(
-        {
-          resource_type: 'raw',
-          folder: 'agreements',
-          public_id: filename.replace('.pdf', ''),
-          format: 'pdf',
-        },
-        (error: any, result: any) => {
-          if (error) {
-            reject(error);
-          } else {
-            resolve(result!.secure_url);
-          }
-        }
-      );
-
-      const readable = Readable.from(pdfBuffer);
-      readable.pipe(uploadStream);
-    });
+  private async savePDFToDisk(pdfBuffer: Buffer, filename: string): Promise<string> {
+    const filePath = path.join(AGREEMENTS_DIR, filename);
+    await fs.promises.writeFile(filePath, pdfBuffer);
+    return `/uploads/agreements/${filename}`;
   }
 
   /**

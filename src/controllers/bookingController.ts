@@ -404,7 +404,7 @@ export const createMobileSaunaBooking = async (req: Request, res: Response) => {
     const designatedDay = vessel.pickupDropoffDay !== undefined ? vessel.pickupDropoffDay : 5;
 
     // Validate rental dates using configurable weekly logic
-    const dateValidation = validateRentalDates(pickupDate, dropoffDate, designatedDay);
+    const dateValidation = validateRentalDates(pickupDate, dropoffDate, designatedDay, vessel.enforceWeeklyBoundary ?? false);
     
     if (!dateValidation.isValid) {
       return res.status(400).json({ 
@@ -784,7 +784,7 @@ export const getMobileSaunaPricingPreview = async (req: Request, res: Response) 
     const designatedDay = vessel.pickupDropoffDay !== undefined ? vessel.pickupDropoffDay : 5;
 
     // Validate rental dates
-    const dateValidation = validateRentalDates(pickupDate, dropoffDate, designatedDay);
+    const dateValidation = validateRentalDates(pickupDate, dropoffDate, designatedDay, vessel.enforceWeeklyBoundary ?? false);
     
     if (!dateValidation.isValid) {
       return res.status(400).json({ 

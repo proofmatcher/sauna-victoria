@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { upload } from '../config/cloudinary.js';
+import { upload } from '../config/imageUpload.js';
 
 // Middleware to handle multer errors
 export const handleUploadError = (err: any, req: Request, res: Response, next: NextFunction) => {

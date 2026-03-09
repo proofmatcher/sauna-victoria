@@ -45,7 +45,7 @@ const generateStaffWelcomeEmail = (name: string, verificationLink: string): stri
                   </p>
                   
                   <p style="color: #333333; font-size: 16px; line-height: 1.6; margin: 0 0 20px;">
-                    You've been added as a staff member for our Sauna Boat Rental service! 🎉
+                    You've been added as a staff member for Victoria Sauna Rental! 🎉
                   </p>
                   
                   <div style="background-color: #f8f9fa; border-left: 4px solid #8b5a2b; padding: 20px; margin: 25px 0;">
@@ -90,7 +90,7 @@ const generateStaffWelcomeEmail = (name: string, verificationLink: string): stri
                     Questions? Contact your administrator.
                   </p>
                   <p style="color: #999999; font-size: 12px; margin: 10px 0 0; line-height: 1.5;">
-                    © ${new Date().getFullYear()} Sauna Boat Rental. All rights reserved.
+                    © ${new Date().getFullYear()} Victoria Sauna Rental. All rights reserved.
                   </p>
                 </td>
               </tr>

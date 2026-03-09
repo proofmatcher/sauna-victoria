@@ -5,6 +5,7 @@ dotenv.config();
 
 import express from "express";
 import cors from 'cors';
+import path from 'path';
 
 import { connectDB } from './config/db.js';
 import authRoutes from './routes/authRoutes.js';
@@ -51,6 +52,9 @@ app.use('/api/stripe', stripeRoutes);
 // JSON body parser for ALL other routes
 app.use(express.json());
 app.use(express.urlencoded({ extended: true })); // Also parse URL-encoded bodies
+
+// Serve uploaded images (in production, Nginx handles this directly)
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 cleanupExpiredBookings(); // Start the cron job
 scheduleDepositRefunds(); // Start deposit refund cron job
