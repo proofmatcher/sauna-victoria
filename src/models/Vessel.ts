@@ -20,6 +20,13 @@ export interface IVessel extends Document {
     day6: number;        // Total price for 6 day rental
     day7: number;        // Total price for 7 day rental
   };
+  // Images
+  images?: string[]; // Array of original image paths
+  imageVariants?: {
+    mobile?: string;
+    tablet?: string;
+    desktop?: string;
+  }[]; // Array of responsive variants matching the order of images
 }
 
 const vesselSchema = new mongoose.Schema<IVessel>({
@@ -41,7 +48,13 @@ const vesselSchema = new mongoose.Schema<IVessel>({
     day5: { type: Number },     // Total price for 5 day rental (cents)
     day6: { type: Number },     // Total price for 6 day rental (cents)
     day7: { type: Number },     // Total price for 7 day rental (cents)
-  }
+  },
+  images: [{ type: String }],
+  imageVariants: [{
+    mobile: { type: String },
+    tablet: { type: String },
+    desktop: { type: String }
+  }]
 }, { timestamps: true });
 
 export default mongoose.model<IVessel>("Vessel", vesselSchema);

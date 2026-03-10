@@ -1,5 +1,7 @@
 import { Request, Response } from "express";
 import Vessel from "../models/Vessel.js";
+import Trip from "../models/Trip.js";
+import { processVesselImage, deleteImageFiles } from "../config/imageUpload.js";
 
 export const createVessel = async (req: Request, res: Response) => {
   const { 
@@ -12,20 +14,63 @@ export const createVessel = async (req: Request, res: Response) => {
     discountThreshold, 
     discountPercent,
     pickupDropoffDay,
-    pricingTiers
+    pricingTiers: rawPricingTiers
   } = req.body;
   
+  // Parse pricingTiers if it's a JSON string (from FormData)
+  let pricingTiers;
+  if (rawPricingTiers) {
+    try {
+      pricingTiers = typeof rawPricingTiers === 'string' 
+        ? JSON.parse(rawPricingTiers) 
+        : rawPricingTiers;
+    } catch (e) {
+      console.error("Failed to parse pricingTiers:", e);
+      pricingTiers = rawPricingTiers;
+    }
+  }
+  
+  // Parse numeric fields from FormData strings
+  const parsedCapacity = capacity ? parseInt(capacity) : undefined;
+  const parsedInventory = inventory ? parseInt(inventory) : 1;
+  const parsedBasePriceCents = basePriceCents ? parseInt(basePriceCents) : undefined;
+  const parsedMinimumDays = minimumDays ? parseInt(minimumDays) : undefined;
+  const parsedDiscountThreshold = discountThreshold ? parseInt(discountThreshold) : undefined;
+  const parsedDiscountPercent = discountPercent ? parseInt(discountPercent) : undefined;
+  const parsedPickupDropoffDay = pickupDropoffDay !== undefined ? parseInt(pickupDropoffDay) : undefined;
+  
+  // Process uploaded images
+  const images: string[] = [];
+  const imageVariants: any[] = [];
+  
+  if (req.files && Array.isArray(req.files) && req.files.length > 0) {
+    const slug = name ? name.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').trim() : 'vessel';
+    
+    // Process each uploaded file
+    for (const file of req.files) {
+      try {
+        const processed = await processVesselImage(file.path, slug);
+        images.push(processed.image);
+        imageVariants.push(processed.imageVariants);
+      } catch (err) {
+        console.error('Error processing vessel image during creation:', err);
+      }
+    }
+  }
+
   const vessel = await Vessel.create({ 
     name, 
     type, 
-    capacity,
-    inventory: inventory || 1, // Default to 1 if not provided
-    basePriceCents,
-    minimumDays,
-    discountThreshold,
-    discountPercent,
-    pickupDropoffDay,
-    pricingTiers
+    capacity: parsedCapacity,
+    inventory: parsedInventory,
+    basePriceCents: parsedBasePriceCents,
+    minimumDays: parsedMinimumDays,
+    discountThreshold: parsedDiscountThreshold,
+    discountPercent: parsedDiscountPercent,
+    pickupDropoffDay: parsedPickupDropoffDay,
+    pricingTiers,
+    images: images.length > 0 ? images : undefined,
+    imageVariants: imageVariants.length > 0 ? imageVariants : undefined
   });
   
   res.status(201).json(vessel);
@@ -40,6 +85,84 @@ export const updateVessel = async (req: Request, res: Response) => {
   try {
     const vesselId = req.params.id;
     const updates = req.body;
+    
+    // Parse pricingTiers if it's a JSON string (from FormData)
+    if (updates.pricingTiers) {
+      try {
+        updates.pricingTiers = typeof updates.pricingTiers === 'string' 
+          ? JSON.parse(updates.pricingTiers) 
+          : updates.pricingTiers;
+      } catch (e) {
+        console.error("Failed to parse pricingTiers:", e);
+      }
+    }
+    
+    // Parse numeric fields from FormData strings
+    if (updates.capacity !== undefined) updates.capacity = parseInt(updates.capacity);
+    if (updates.inventory !== undefined) updates.inventory = parseInt(updates.inventory);
+    if (updates.basePriceCents !== undefined) updates.basePriceCents = parseInt(updates.basePriceCents);
+    if (updates.minimumDays !== undefined) updates.minimumDays = parseInt(updates.minimumDays);
+    if (updates.discountThreshold !== undefined) updates.discountThreshold = parseInt(updates.discountThreshold);
+    if (updates.discountPercent !== undefined) updates.discountPercent = parseInt(updates.discountPercent);
+    if (updates.pickupDropoffDay !== undefined) updates.pickupDropoffDay = parseInt(updates.pickupDropoffDay);
+    
+    // Fetch the existing vessel to handle images
+    const existingVessel = await Vessel.findById(vesselId);
+    if (!existingVessel) {
+      return res.status(404).json({ message: "Vessel not found" });
+    }
+
+    // Handle existing images that the client wants to keep
+    let finalImages: string[] = [];
+    let finalImageVariants: any[] = [];
+    
+    // Parse existingImages if sent as a stringified JSON array (from FormData)
+    let keptImages: string[] = [];
+    if (updates.existingImages) {
+      try {
+        keptImages = typeof updates.existingImages === 'string' 
+          ? JSON.parse(updates.existingImages) 
+          : updates.existingImages;
+      } catch (e) {
+        console.error("Failed to parse existingImages:", e);
+      }
+    }
+    
+    // Add kept images back to the final arrays
+    if (existingVessel.images && existingVessel.imageVariants) {
+      existingVessel.images.forEach((img, index) => {
+        if (keptImages.includes(img)) {
+          finalImages.push(img);
+          finalImageVariants.push(existingVessel.imageVariants![index]);
+        } else {
+          // Image was removed by user, delete from disk
+          try {
+            deleteImageFiles(img);
+          } catch (err) {
+            console.error("Error deleting removed vessel image from disk:", err);
+          }
+        }
+      });
+    }
+
+    // Process new uploaded images
+    if (req.files && Array.isArray(req.files) && req.files.length > 0) {
+      const slug = (updates.name || existingVessel.name).toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').trim();
+      
+      for (const file of req.files) {
+        try {
+          const processed = await processVesselImage(file.path, slug);
+          finalImages.push(processed.image);
+          finalImageVariants.push(processed.imageVariants);
+        } catch (err) {
+          console.error('Error processing new vessel image during update:', err);
+        }
+      }
+    }
+    
+    // Update the image fields in the updates object
+    updates.images = finalImages;
+    updates.imageVariants = finalImageVariants;
     
     // Check if capacity is being changed
     const isCapacityChanged = updates.capacity !== undefined;
@@ -128,6 +251,20 @@ export const deleteVessel = async (req: Request, res: Response) => {
     const vessel = await Vessel.findByIdAndDelete(req.params.id);
     if (!vessel) {
       return res.status(404).json({ message: "Vessel not found" });
+    }
+
+    // Delete all trips associated with this vessel
+    await Trip.deleteMany({ vessel: req.params.id });
+
+    // Delete associated images from disk
+    if (vessel.images && vessel.images.length > 0) {
+      for (const img of vessel.images) {
+        try {
+          deleteImageFiles(img);
+        } catch (err) {
+          console.error("Error deleting vessel image from disk during vessel deletion:", err);
+        }
+      }
     }
 
     res.status(201).json({ 

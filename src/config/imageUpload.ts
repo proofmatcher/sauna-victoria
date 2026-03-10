@@ -3,13 +3,18 @@ import sharp from 'sharp';
 import path from 'path';
 import fs from 'fs';
 
-// ─── Upload directories ───────────────────────────────────────────────
+// ─── Upload directories (Service Posts) ───────────────────────────────
 const UPLOAD_BASE = path.resolve(process.cwd(), 'uploads', 'service-posts');
 const ORIGINALS_DIR = path.join(UPLOAD_BASE, 'originals');
 const PROCESSED_DIR = path.join(UPLOAD_BASE, 'processed');
 
+// ─── Upload directories (Vessels) ─────────────────────────────────────
+const VESSEL_UPLOAD_BASE = path.resolve(process.cwd(), 'uploads', 'vessels');
+const VESSEL_ORIGINALS_DIR = path.join(VESSEL_UPLOAD_BASE, 'originals');
+const VESSEL_PROCESSED_DIR = path.join(VESSEL_UPLOAD_BASE, 'processed');
+
 // Ensure directories exist
-[ORIGINALS_DIR, PROCESSED_DIR].forEach((dir) => {
+[ORIGINALS_DIR, PROCESSED_DIR, VESSEL_ORIGINALS_DIR, VESSEL_PROCESSED_DIR].forEach((dir) => {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
@@ -47,9 +52,27 @@ const fileFilter = (
   }
 };
 
-// Multer upload instance (drop-in replacement for Cloudinary upload)
+// Multer upload instance for service posts
 export const upload = multer({
   storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter,
+});
+
+// ─── Vessel-specific Multer instance ──────────────────────────────────
+const vesselStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    cb(null, VESSEL_ORIGINALS_DIR);
+  },
+  filename: (_req, file, cb) => {
+    const uniqueId = `vessel-${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+    const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
+    cb(null, `${uniqueId}${ext}`);
+  },
+});
+
+export const vesselUpload = multer({
+  storage: vesselStorage,
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
   fileFilter,
 });
@@ -73,7 +96,7 @@ const VARIANTS = [
 ] as const;
 
 /**
- * Process an uploaded image with sharp:
+ * Process an uploaded image with sharp (Service Posts):
  * - Creates 3 responsive WebP variants (400px, 800px, 1200px)
  * - Strips EXIF metadata
  * - Deletes the original upload after processing
@@ -107,6 +130,52 @@ export const processUploadedImage = async (filePath: string, slug: string): Prom
     fs.unlinkSync(filePath);
   } catch (err) {
     console.error('Warning: Could not delete original upload:', err);
+  }
+
+  return {
+    image: variants.desktop,  // Main/largest image
+    imageVariants: {
+      mobile: variants.mobile,
+      tablet: variants.tablet,
+      desktop: variants.desktop,
+    },
+  };
+};
+
+/**
+ * Process an uploaded vessel image with sharp:
+ * - Creates 3 responsive WebP variants (400px, 800px, 1200px)
+ * - Strips EXIF metadata
+ * - Deletes the original upload after processing
+ * 
+ * @param filePath Absolute path to the uploaded original file
+ * @param slug SEO-friendly slug from the vessel name (e.g. "large-luxury-sauna")
+ * @returns Object with image URL and variant URLs (relative paths for serving)
+ */
+export const processVesselImage = async (filePath: string, slug: string): Promise<ProcessedImage> => {
+  const shortHash = Math.random().toString(36).substring(2, 6);
+  const basename = `${slug}-${shortHash}`;
+  const variants: Record<string, string> = {};
+
+  for (const variant of VARIANTS) {
+    const outputFilename = `${basename}-${variant.name}.webp`;
+    const outputPath = path.join(VESSEL_PROCESSED_DIR, outputFilename);
+
+    await sharp(filePath)
+      .resize(variant.width, null, { fit: 'inside', withoutEnlargement: true })
+      .webp({ quality: variant.quality })
+      .rotate() // Auto-orient based on EXIF then strip
+      .toFile(outputPath);
+
+    // Store as URL path (relative to server root)
+    variants[variant.name] = `/uploads/vessels/processed/${outputFilename}`;
+  }
+
+  // Delete original upload to save disk space
+  try {
+    fs.unlinkSync(filePath);
+  } catch (err) {
+    console.error('Warning: Could not delete original vessel upload:', err);
   }
 
   return {
