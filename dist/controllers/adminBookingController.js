@@ -43,7 +43,7 @@ export const getAllBookings = async (req, res) => {
         if (userId)
             query.user = userId;
         const bookings = await Booking.find(query)
-            .populate("user", "name email")
+            .populate({ path: "user", select: "name email", strictPopulate: false }) // Guest bookings have null user
             .populate("trip", "title type startTime")
             .populate("vessel", "name type capacity");
         res.json(bookings);
@@ -101,7 +101,7 @@ export const cancelBooking = async (req, res) => {
 export const getBookingById = async (req, res) => {
     try {
         const booking = await Booking.findById(req.params.id)
-            .populate("user", "name email")
+            .populate({ path: "user", select: "name email", strictPopulate: false }) // Guest bookings have null user
             .populate("trip", "title type startTime")
             .populate("vessel", "name type capacity pricingTiers");
         if (!booking)
@@ -136,7 +136,7 @@ export const updateBooking = async (req, res) => {
             const newEndDate = new Date(endDate);
             // Validate new dates
             const pickupDay = vessel.pickupDropoffDay !== undefined ? vessel.pickupDropoffDay : 5;
-            const dateValidation = validateRentalDates(newStartDate, newEndDate, pickupDay);
+            const dateValidation = validateRentalDates(newStartDate, newEndDate, pickupDay, vessel.enforceWeeklyBoundary ?? false);
             if (!dateValidation.isValid) {
                 return res.status(400).json({
                     message: "Invalid rental dates",
@@ -285,7 +285,7 @@ export const extendRental = async (req, res) => {
         }
         // Validate extended date follows pickup day rules
         const pickupDay = vessel.pickupDropoffDay !== undefined ? vessel.pickupDropoffDay : 5;
-        const dateValidation = validateRentalDates(new Date(booking.startTime), extendedEndDate, pickupDay);
+        const dateValidation = validateRentalDates(new Date(booking.startTime), extendedEndDate, pickupDay, vessel.enforceWeeklyBoundary ?? false);
         if (!dateValidation.isValid) {
             return res.status(400).json({
                 message: "Extended date violates rental day rules",

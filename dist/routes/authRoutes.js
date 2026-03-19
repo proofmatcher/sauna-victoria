@@ -4,8 +4,11 @@ import { authorize } from "../middleware/roleMiddleware.js";
 import { loginRateLimiter, passwordResetRateLimiter, registrationRateLimiter } from "../middleware/rateLimitMiddleware.js";
 import { registerUser, loginUser, forgotPassword, resetPassword, logoutUser, refreshToken, logoutAllSessions, getCurrentUser, verifyEmail, resendVerificationEmail, } from "../controllers/authController.js";
 const router = express.Router();
+// Admin-only registration (admins can create other admin accounts)
+// For first admin creation, use: npm run create-admin
+router.post("/register", protect, authorize("admin"), registrationRateLimiter, registerUser);
 // Public routes (with rate limiting)
-router.post("/register", registrationRateLimiter, registerUser);
+// Note: Guests use /api/guest/send-code and /api/guest/verify-code for OTP authentication
 router.post("/login", loginRateLimiter, loginUser);
 router.post("/forgot-password", passwordResetRateLimiter, forgotPassword);
 router.post("/reset-password/:token", resetPassword);

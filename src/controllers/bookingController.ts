@@ -976,63 +976,60 @@ export const lookupBooking = async (req: Request, res: Response) => {
   try {
     const { email, bookingId } = req.body;
 
-    if (!email || !bookingId) {
+    if (!email) {
       return res.status(400).json({ 
-        message: 'Email and booking ID are required' 
+        message: 'Email address is required' 
       });
     }
 
-    // Validate bookingId format
-    if (!mongoose.Types.ObjectId.isValid(bookingId)) {
-      return res.status(404).json({ 
-        message: 'Booking not found' 
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // If bookingId provided, look up a specific booking
+    if (bookingId) {
+      if (!mongoose.Types.ObjectId.isValid(bookingId)) {
+        return res.status(404).json({ message: 'Booking not found' });
+      }
+
+      const booking: any = await Booking.findOne({
+        _id: bookingId,
+        customerEmail: normalizedEmail
+      })
+        .populate('trip')
+        .populate('vessel')
+        .lean();
+
+      if (!booking) {
+        return res.status(404).json({ 
+          message: 'Booking not found. Please check your email and booking ID.' 
+        });
+      }
+
+      return res.json({
+        success: true,
+        bookings: [formatBookingForGuest(booking)]
       });
     }
 
-    // Find booking by ID and email
-    const booking: any = await Booking.findOne({
-      _id: bookingId,
-      customerEmail: email.toLowerCase().trim()
+    // Email-only lookup: return all bookings for this email
+    const bookings: any[] = await Booking.find({
+      customerEmail: normalizedEmail
     })
       .populate('trip')
       .populate('vessel')
-      .populate('user', 'name email')
+      .sort({ createdAt: -1 })
       .lean();
 
-    if (!booking) {
+    if (!bookings || bookings.length === 0) {
       return res.status(404).json({ 
-        message: 'Booking not found. Please check your email and booking ID.' 
+        message: 'No bookings found for this email address.' 
       });
     }
 
-    // Return booking details (safe for guests)
-    res.json({
+    return res.json({
       success: true,
-      booking: {
-        _id: booking._id,
-        bookingId: booking._id,
-        customerName: booking.customerName,
-        customerEmail: booking.customerEmail,
-        customerPhone: booking.customerPhone,
-        trip: booking.trip,
-        vessel: booking.vessel,
-        startTime: booking.startTime,
-        endTime: booking.endTime,
-        numberOfSeats: booking.numberOfSeats,
-        isGroup: booking.isGroup,
-        totalAmount: booking.totalAmount,
-        status: booking.status,
-        paymentStatus: booking.paymentStatus,
-        rulesAgreed: booking.rulesAgreed,
-        waiverSigned: booking.waiverSigned,
-        createdAt: booking.createdAt,
-        // Mobile sauna specific fields
-        deliveryAddress: booking.deliveryAddress,
-        additionalWoodBins: booking.additionalWoodBins,
-        deliveryFee: booking.deliveryFee,
-        woodBinsFee: booking.woodBinsFee
-      }
+      bookings: bookings.map(formatBookingForGuest)
     });
+
   } catch (err: any) {
     console.error('Lookup booking error:', err);
     res.status(500).json({ 
@@ -1040,3 +1037,32 @@ export const lookupBooking = async (req: Request, res: Response) => {
     });
   }
 };
+
+function formatBookingForGuest(booking: any) {
+  return {
+    _id: booking._id,
+    bookingId: booking._id,
+    customerName: booking.customerName,
+    customerEmail: booking.customerEmail,
+    customerPhone: booking.customerPhone,
+    trip: booking.trip,
+    vessel: booking.vessel,
+    startTime: booking.startTime,
+    endTime: booking.endTime,
+    numberOfSeats: booking.numberOfSeats,
+    isGroup: booking.isGroup,
+    totalAmount: booking.totalAmount,
+    totalPriceCents: booking.totalPriceCents,
+    status: booking.status,
+    paymentStatus: booking.paymentStatus,
+    rulesAgreed: booking.rulesAgreed,
+    waiverSigned: booking.waiverSigned,
+    createdAt: booking.createdAt,
+    deliveryAddress: booking.deliveryAddress,
+    additionalWoodBins: booking.additionalWoodBins,
+    deliveryFee: booking.deliveryFee || booking.deliveryFeeCents,
+    woodBinsFee: booking.woodBinsFee || booking.woodBinsCostCents,
+    damageDepositCents: booking.damageDepositCents,
+    damageDepositStatus: booking.damageDepositStatus,
+  };
+}

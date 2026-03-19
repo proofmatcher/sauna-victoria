@@ -1,4 +1,4 @@
-import { upload } from '../config/cloudinary.js';
+import { upload } from '../config/imageUpload.js';
 // Middleware to handle multer errors
 export const handleUploadError = (err, req, res, next) => {
     if (err) {

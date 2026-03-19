@@ -10,6 +10,7 @@ const vesselSchema = new mongoose.Schema({
     discountThreshold: { type: Number }, // days threshold for discount (7+ days)
     discountPercent: { type: Number }, // discount percentage (20% for Large Luxury)
     pickupDropoffDay: { type: Number, default: 5, min: 0, max: 6 }, // Default Friday (5), configurable per vessel
+    enforceWeeklyBoundary: { type: Boolean, default: false }, // When true: restricts booking to designated day boundaries
     // Tiered pricing for mobile saunas
     pricingTiers: {
         days1to3: { type: Number }, // Total price for 1-3 days rental (cents)
@@ -17,7 +18,13 @@ const vesselSchema = new mongoose.Schema({
         day5: { type: Number }, // Total price for 5 day rental (cents)
         day6: { type: Number }, // Total price for 6 day rental (cents)
         day7: { type: Number }, // Total price for 7 day rental (cents)
-    }
+    },
+    images: [{ type: String }],
+    imageVariants: [{
+            mobile: { type: String },
+            tablet: { type: String },
+            desktop: { type: String }
+        }]
 }, { timestamps: true });
 export default mongoose.model("Vessel", vesselSchema);
 //# sourceMappingURL=Vessel.js.map

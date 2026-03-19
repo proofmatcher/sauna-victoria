@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 interface CreateBookingInput {
-    userId: string;
+    userId: string | null;
     tripId?: string;
     vesselId: string;
     seatsBooked?: number;

@@ -14,7 +14,7 @@ export const getMobileSaunaBookings = async (_req, res) => {
             match: { type: 'mobile_sauna' },
             select: 'name type capacity'
         })
-            .populate('user', 'name email')
+            .populate({ path: 'user', select: 'name email', strictPopulate: false }) // Guest bookings have null user
             .sort({ createdAt: -1 });
         // Filter out bookings where vessel is null (not mobile sauna)
         const filteredBookings = mobileSaunaBookings.filter(booking => booking.vessel !== null);
@@ -168,7 +168,7 @@ export const getMobileSaunaBookingById = async (req, res) => {
         }
         const booking = await Booking.findById(id)
             .populate('vessel', 'name type capacity')
-            .populate('user', 'name email');
+            .populate({ path: 'user', select: 'name email', strictPopulate: false }); // Guest bookings have null user
         if (!booking) {
             return res.status(404).json({ message: "Booking not found" });
         }

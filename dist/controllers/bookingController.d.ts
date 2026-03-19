@@ -1,8 +1,10 @@
 import { Request, Response } from "express";
+import { AuthRequest } from "../middleware/authMiddleware.js";
 /**
  * Reserve a booking (trip or trailer)
+ * Supports both guest and admin bookings
  */
-export declare const createBookingController: (req: Request, res: Response) => Promise<void>;
+export declare const createBookingController: (req: AuthRequest, res: Response) => Promise<void>;
 /**
  * Get all bookings for current user
  */
@@ -47,3 +49,8 @@ export declare const getMobileSaunaPricingPreview: (req: Request, res: Response)
  * Called after user reviews agreement modal and clicks "I agree"
  */
 export declare const acceptBookingAgreement: (req: Request, res: Response) => Promise<Response<any, Record<string, any>> | undefined>;
+/**
+ * Lookup booking by email and booking ID (for guests)
+ * Public endpoint - no authentication required
+ */
+export declare const lookupBooking: (req: Request, res: Response) => Promise<Response<any, Record<string, any>> | undefined>;

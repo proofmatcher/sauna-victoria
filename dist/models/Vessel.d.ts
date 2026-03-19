@@ -10,6 +10,7 @@ export interface IVessel extends Document {
     discountThreshold?: number;
     discountPercent?: number;
     pickupDropoffDay?: number;
+    enforceWeeklyBoundary?: boolean;
     pricingTiers?: {
         days1to3: number;
         day4: number;
@@ -17,6 +18,12 @@ export interface IVessel extends Document {
         day6: number;
         day7: number;
     };
+    images?: string[];
+    imageVariants?: {
+        mobile?: string;
+        tablet?: string;
+        desktop?: string;
+    }[];
 }
 declare const _default: mongoose.Model<IVessel, {}, {}, {}, mongoose.Document<unknown, {}, IVessel, {}, {}> & IVessel & Required<{
     _id: unknown;

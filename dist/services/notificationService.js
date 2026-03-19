@@ -82,11 +82,17 @@ export const notifyCustomerBookingConfirmed = async (bookingId) => {
         if (!booking) {
             throw new Error("Booking not found");
         }
-        const user = booking.user;
+        const user = booking.user; // Can be null for guest bookings
         const trip = booking.trip;
         const vessel = trip?.vessel;
-        if (!user || !trip) {
-            throw new Error("Booking data incomplete");
+        if (!trip) {
+            throw new Error("Booking data incomplete: trip not found");
+        }
+        // Use customerEmail/customerName for guests, fallback to user data if available
+        const customerEmail = booking.customerEmail || user?.email;
+        const customerName = booking.customerName || user?.name;
+        if (!customerEmail || !customerName) {
+            throw new Error("Booking data incomplete: customer email or name missing");
         }
         const tripDate = new Date(trip.departureTime).toLocaleString();
         const duration = Math.floor(trip.durationMinutes / 60);
@@ -97,7 +103,7 @@ export const notifyCustomerBookingConfirmed = async (bookingId) => {
       <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px;">
         <h2 style="color: #2c3e50;">🎉 Your Booking is Confirmed!</h2>
         
-        <p>Dear ${booking.customerName || user.name},</p>
+        <p>Dear ${customerName},</p>
         
         <p>Thank you for your payment! Your booking has been confirmed.</p>
 
@@ -132,16 +138,13 @@ export const notifyCustomerBookingConfirmed = async (bookingId) => {
 
         <hr style="margin: 30px 0; border: none; border-top: 1px solid #ddd;">
         <p style="font-size: 12px; color: #999;">
-          This confirmation was sent to ${booking.customerEmail || user.email}<br>
+          This confirmation was sent to ${customerEmail}<br>
           Sauna Boat Booking System
         </p>
       </div>
     `;
-        // Send email to customerEmail (the email provided in booking form) or fallback to user account email
-        const recipientEmail = booking.customerEmail || user.email;
-        const recipientName = booking.customerName || user.name;
-        await sendEmail(recipientEmail, emailSubject, emailBody);
-        console.log(`✅ Confirmation email sent to customer: ${recipientName} (${recipientEmail})`);
+        await sendEmail(customerEmail, emailSubject, emailBody);
+        console.log(`✅ Confirmation email sent to customer: ${customerName} (${customerEmail})`);
         return { success: true };
     }
     catch (error) {
@@ -160,10 +163,16 @@ export const notifyCustomerMobileSaunaBookingConfirmed = async (bookingId) => {
         if (!booking) {
             throw new Error("Booking not found");
         }
-        const user = booking.user;
+        const user = booking.user; // Can be null for guest bookings
         const vessel = booking.vessel;
-        if (!user || !vessel) {
-            throw new Error("Booking data incomplete");
+        if (!vessel) {
+            throw new Error("Booking data incomplete: vessel not found");
+        }
+        // Use customerEmail/customerName for guests, fallback to user data if available
+        const customerEmail = booking.customerEmail || user?.email;
+        const customerName = booking.customerName || user?.name;
+        if (!customerEmail || !customerName) {
+            throw new Error("Booking data incomplete: customer email or name missing");
         }
         const pickupDate = new Date(booking.startTime).toLocaleDateString('en-US', {
             weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
@@ -190,7 +199,7 @@ export const notifyCustomerMobileSaunaBookingConfirmed = async (bookingId) => {
       <h3 style="color: #2c3e50; margin-top: 30px;">Mobile Sauna Rental Agreement</h3>
       <div style="background-color: #f9f9f9; padding: 20px; border-left: 4px solid #3498db; font-size: 14px; line-height: 1.6;">
         <p><strong>This Agreement is made on:</strong> ${new Date().toLocaleDateString()}</p>
-        <p><strong>Between:</strong> HAVN SUNAS ("Renter") and ${user.name} ("Customer")</p>
+        <p><strong>Between:</strong> Victoria Mobile Sauna Rentals ("Renter") and ${customerName} ("Customer")</p>
         
         <h4>Rental Details:</h4>
         <ul style="margin: 10px 0;">
@@ -223,7 +232,7 @@ export const notifyCustomerMobileSaunaBookingConfirmed = async (bookingId) => {
         const emailSubject = `Mobile Sauna Rental Confirmed - ${vessel.name}`;
         const emailBody = `
       <div style="font-family: Arial, sans-serif; padding: 30px; max-width: 600px; margin: 0 auto; color: #333;">
-        <h2 style="color: #2c3e50; margin-bottom: 20px;">Hello ${booking.customerName || user.name},</h2>
+        <h2 style="color: #2c3e50; margin-bottom: 20px;">Hello ${customerName},</h2>
         
         <p style="font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
           Thank you so much for booking with us! We're sure you'll have a relaxing, rejuvenating time. 
@@ -234,7 +243,7 @@ export const notifyCustomerMobileSaunaBookingConfirmed = async (bookingId) => {
 
         <p style="font-size: 16px; line-height: 1.6; margin-bottom: 30px;">
           If you have any questions, please feel free to contact us by email at 
-          <a href="mailto:info@example.com" style="color: #3498db;">info@example.com</a>
+          <a href="mailto:Info@victoriasaunarentals.ca" style="color: #3498db;">Info@victoriasaunarentals.ca</a>
         </p>
 
         <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 25px 0;">
@@ -271,7 +280,7 @@ export const notifyCustomerMobileSaunaBookingConfirmed = async (bookingId) => {
 
         <hr style="margin: 30px 0; border: none; border-top: 1px solid #ddd;">
         <p style="font-size: 12px; color: #999; margin-top: 20px;">
-          This confirmation was sent to ${booking.customerEmail || user.email}<br>
+          This confirmation was sent to ${customerEmail}<br>
           Please find the rental agreement attached to this email.
         </p>
       </div>
@@ -302,17 +311,14 @@ export const notifyCustomerMobileSaunaBookingConfirmed = async (bookingId) => {
 
         <div style="background-color: #f5f5f5; padding: 20px; border-radius: 0 0 10px 10px; text-align: center;">
           <p style="font-size: 12px; color: #999; margin: 5px 0;">
-            This confirmation was sent to ${user.email}
+            This confirmation was sent to ${customerEmail}
           </p>
           <p style="font-size: 12px; color: #999; margin: 5px 0;">
-            HAVN SUNAS - Mobile Sauna Rentals
+            Victoria Mobile Sauna Rentals - Mobile Sauna Rentals
           </p>
         </div>
       </div>
     `;
-        // Send email to customerEmail (the email provided in booking request)
-        const recipientEmail = booking.customerEmail || user.email;
-        const recipientName = booking.customerName || user.name;
         // Generate agreement PDF to attach to email
         let pdfAttachment = undefined;
         try {
@@ -331,9 +337,9 @@ export const notifyCustomerMobileSaunaBookingConfirmed = async (bookingId) => {
                 }
             }
             const pdfBuffer = await agreementService.generatePDF({
-                customerName: booking.customerName || user.name,
+                customerName: customerName,
                 deliveryAddress: booking.deliveryAddress || '',
-                customerEmail: booking.customerEmail || user.email,
+                customerEmail: customerEmail,
                 customerPhone: booking.customerPhone || '',
                 agreementDate: new Date().toISOString().split('T')[0],
                 capacity: capacityStr,
@@ -352,8 +358,8 @@ export const notifyCustomerMobileSaunaBookingConfirmed = async (bookingId) => {
             console.error('Failed to generate PDF attachment:', pdfError);
             // Continue sending email without attachment
         }
-        await sendEmail(recipientEmail, emailSubject, emailBody, pdfAttachment);
-        console.log(`✅ Mobile sauna confirmation email sent to: ${recipientName} (${recipientEmail})`);
+        await sendEmail(customerEmail, emailSubject, emailBody, pdfAttachment);
+        console.log(`✅ Mobile sauna confirmation email sent to: ${customerName} (${customerEmail})`);
         return { success: true };
     }
     catch (error) {
@@ -381,14 +387,19 @@ export const sendTripReminders = async (tripId) => {
         }).populate("user");
         // Send reminders to customers
         for (const booking of bookings) {
-            const user = booking.user;
-            if (!user)
+            const user = booking.user; // Can be null for guest bookings
+            // Use customerEmail/customerName for guests, fallback to user data
+            const customerEmail = booking.customerEmail || user?.email;
+            const customerName = booking.customerName || user?.name;
+            if (!customerEmail || !customerName) {
+                console.warn(`Skipping booking ${booking._id}: missing customer email or name`);
                 continue;
+            }
             const emailSubject = `Reminder: Your Trip Tomorrow - ${trip.title}`;
             const emailBody = `
         <div style="font-family: Arial, sans-serif; padding: 20px;">
           <h2>⏰ Trip Reminder</h2>
-          <p>Hi ${user.name},</p>
+          <p>Hi ${customerName},</p>
           <p>This is a friendly reminder about your upcoming sauna boat trip tomorrow!</p>
           
           <div style="background-color: #e3f2fd; padding: 15px; border-radius: 5px; margin: 20px 0;">
@@ -408,7 +419,7 @@ export const sendTripReminders = async (tripId) => {
           <p>We look forward to seeing you! 🚤</p>
         </div>
       `;
-            await sendEmail(user.email, emailSubject, emailBody);
+            await sendEmail(customerEmail, emailSubject, emailBody);
         }
         // Send reminders to staff
         for (const staff of trip.assignedStaff) {

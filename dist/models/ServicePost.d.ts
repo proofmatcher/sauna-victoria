@@ -6,6 +6,11 @@ export interface IServicePost extends Document {
     readTime: string;
     category: string;
     image?: string;
+    imageVariants?: {
+        mobile: string;
+        tablet: string;
+        desktop: string;
+    };
     featured: boolean;
     published: boolean;
     author: mongoose.Types.ObjectId;

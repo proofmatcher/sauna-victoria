@@ -68,7 +68,7 @@ export const createBooking = async ({ userId, tripId, vesselId, seatsBooked = 1,
     const holdMinutes = parseInt(process.env.HOLD_MINUTES || "30", 10);
     const holdTime = Math.max(holdMinutes, 30); // Ensure minimum 30 minutes for Stripe compatibility
     const booking = await Booking.create({
-        user: new mongoose.Types.ObjectId(userId),
+        user: userId ? new mongoose.Types.ObjectId(userId) : undefined, // null for guest bookings
         trip: trip ? trip._id : undefined,
         vessel: vessel._id,
         seatsBooked,

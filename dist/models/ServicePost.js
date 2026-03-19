@@ -31,6 +31,11 @@ const servicePostSchema = new Schema({
         type: String,
         default: null
     },
+    imageVariants: {
+        mobile: { type: String },
+        tablet: { type: String },
+        desktop: { type: String },
+    },
     featured: {
         type: Boolean,
         default: false
