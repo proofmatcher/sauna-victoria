@@ -216,6 +216,10 @@ export const verifyPaymentStatus = async (bookingId) => {
         return {
             status: booking.status,
             paymentStatus: "no_payment_initiated",
+            agreementPdfUrl: booking.agreementPdfUrl || null,
+            agreementAcceptedAt: booking.agreementAcceptedAt || null,
+            rulesAgreed: booking.rulesAgreed || false,
+            waiverSigned: booking.waiverSigned || false,
         };
     }
     // Retrieve session from Stripe
@@ -224,6 +228,10 @@ export const verifyPaymentStatus = async (bookingId) => {
         status: booking.status,
         paymentStatus: session.payment_status,
         sessionStatus: session.status,
+        agreementPdfUrl: booking.agreementPdfUrl || null,
+        agreementAcceptedAt: booking.agreementAcceptedAt || null,
+        rulesAgreed: booking.rulesAgreed || false,
+        waiverSigned: booking.waiverSigned || false,
     };
 };
 //# sourceMappingURL=stripePaymentService.js.map

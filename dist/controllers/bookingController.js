@@ -7,6 +7,7 @@ import mongoose from "mongoose";
 import { createCheckoutSession, verifyPaymentStatus, } from "../services/stripePaymentService.js";
 import { validateRentalDates, normalizeDateToMidnight } from "../utils/rentalDateUtils.js";
 import { calculateDistanceFromHillsideMall, calculateDeliveryFee, calculateWoodBinsCost, getDeliveryFeeBreakdown, getWoodBinsBreakdown } from "../utils/deliveryCalculations.js";
+import { calculateAgeYears, calculateMobileSaunaPricing, } from "../services/mobileSaunaPricingService.js";
 /**
  * Check if vessel has available inventory for the date range
  * Returns number of available units
@@ -127,6 +128,13 @@ export const cancelBooking = async (req, res) => {
         }
     }
     booking.status = "cancelled";
+    // If payment was never captured, there is no real deposit hold to refund later.
+    // Mark as refunded-equivalent to avoid leaving stale "held" state.
+    if (!booking.stripePaymentIntentId && booking.damageDepositStatus === 'held') {
+        booking.damageDepositStatus = 'refunded';
+        booking.damageDepositRefundDate = new Date();
+        booking.damageDepositNotes = booking.damageDepositNotes || 'Booking cancelled before payment capture; no deposit charge was collected.';
+    }
     await booking.save();
     res.json({ message: "Booking cancelled successfully", booking });
 };
@@ -247,6 +255,19 @@ export const createMobileSaunaBooking = async (req, res) => {
                 message: "Additional wood bins must be between 0 and 10"
             });
         }
+        // Validate customer age (must be 18+)
+        const birthdate = normalizeDateToMidnight(customerBirthdate);
+        if (Number.isNaN(birthdate.getTime())) {
+            return res.status(400).json({ message: "Invalid birthdate provided" });
+        }
+        const ageYears = calculateAgeYears(birthdate);
+        if (ageYears < 18) {
+            return res.status(400).json({
+                message: "You must be at least 18 years old to book a mobile sauna",
+                minimumAge: 18,
+                providedAge: ageYears,
+            });
+        }
         // Calculate delivery distance and fee using Google Maps API
         let deliveryDistanceKm = 0;
         let deliveryFeeCents = 0;
@@ -336,69 +357,29 @@ export const createMobileSaunaBooking = async (req, res) => {
                 minimumRequired: vessel.minimumDays || 1
             });
         }
-        // Calculate pricing using tiered system
-        let totalPrice = 0;
-        if (vessel.pricingTiers) {
-            // Use tiered pricing system
-            if (days <= 3) {
-                totalPrice = vessel.pricingTiers.days1to3 || 0;
-            }
-            else if (days === 4) {
-                totalPrice = vessel.pricingTiers.day4 || 0;
-            }
-            else if (days === 5) {
-                totalPrice = vessel.pricingTiers.day5 || 0;
-            }
-            else if (days === 6) {
-                totalPrice = vessel.pricingTiers.day6 || 0;
-            }
-            else if (days === 7) {
-                totalPrice = vessel.pricingTiers.day7 || 0;
-            }
-            else if (days > 7) {
-                // Multi-week pricing: Repeat tier pricing for each week + remaining days
-                const completeWeeks = Math.floor(days / 7);
-                const remainingDays = days % 7;
-                // Add price for each complete week
-                totalPrice = completeWeeks * (vessel.pricingTiers.day7 || 0);
-                // Add price for remaining days using appropriate tier
-                if (remainingDays > 0) {
-                    if (remainingDays <= 3) {
-                        totalPrice += vessel.pricingTiers.days1to3 || 0;
-                    }
-                    else if (remainingDays === 4) {
-                        totalPrice += vessel.pricingTiers.day4 || 0;
-                    }
-                    else if (remainingDays === 5) {
-                        totalPrice += vessel.pricingTiers.day5 || 0;
-                    }
-                    else if (remainingDays === 6) {
-                        totalPrice += vessel.pricingTiers.day6 || 0;
-                    }
-                }
-                console.log(`📊 Multi-week pricing: ${completeWeeks} week(s) + ${remainingDays} day(s) = $${(totalPrice / 100).toFixed(2)}`);
-            }
-        }
-        else {
-            // Fallback to old per-day pricing if tiers not set
-            totalPrice = vessel.basePriceCents * days;
-        }
-        // Apply discount if applicable (Large Luxury Sauna: 20% off for 7+ days)
-        const isDiscountApplicable = vessel.discountThreshold && vessel.discountPercent && days >= vessel.discountThreshold;
-        if (isDiscountApplicable) {
-            const discount = totalPrice * (vessel.discountPercent / 100);
-            totalPrice = totalPrice - discount;
-        }
-        // Calculate final total price including delivery, wood bins, and damage deposit
-        const rentalPriceCents = Math.round(totalPrice);
+        // Calculate final pricing using shared pricing service
         const damageDepositCents = 25000; // $250.00 refundable damage deposit
-        const finalTotalPriceCents = rentalPriceCents + deliveryFeeCents + woodBinsCostCents + damageDepositCents;
+        const pricing = calculateMobileSaunaPricing({
+            days,
+            vessel: {
+                basePriceCents: vessel.basePriceCents,
+                pricingTiers: vessel.pricingTiers,
+                discountThreshold: vessel.discountThreshold,
+                discountPercent: vessel.discountPercent,
+            },
+            deliveryFeeCents,
+            woodBinsCostCents,
+            damageDepositCents,
+        });
         console.log(`💵 Pricing breakdown:`);
-        console.log(`   Rental: $${(rentalPriceCents / 100).toFixed(2)}`);
-        console.log(`   Delivery: $${(deliveryFeeCents / 100).toFixed(2)}`);
-        console.log(`   Wood bins: $${(woodBinsCostCents / 100).toFixed(2)}`);
-        console.log(`   Damage Deposit: $${(damageDepositCents / 100).toFixed(2)} (Refundable)`);
-        console.log(`   TOTAL: $${(finalTotalPriceCents / 100).toFixed(2)}`);
+        console.log(`   Base rental: $${(pricing.baseRentalPriceCents / 100).toFixed(2)}`);
+        console.log(`   Discount: -$${(pricing.discountAmountCents / 100).toFixed(2)}`);
+        console.log(`   Rental after discount: $${(pricing.rentalPriceCents / 100).toFixed(2)}`);
+        console.log(`   Delivery: $${(pricing.deliveryFeeCents / 100).toFixed(2)}`);
+        console.log(`   Wood bins: $${(pricing.woodBinsCostCents / 100).toFixed(2)}`);
+        console.log(`   GST (5%): $${(pricing.gstCents / 100).toFixed(2)}`);
+        console.log(`   Damage Deposit: $${(pricing.damageDepositCents / 100).toFixed(2)} (Refundable)`);
+        console.log(`   TOTAL DUE NOW: $${(pricing.totalDueNowCents / 100).toFixed(2)}`);
         // For mobile saunas, rental period starts when payment is approved (not trip departure)
         // Initially set startTime and endTime to null - they will be set when payment is confirmed
         const bookingTime = new Date(); // When user made the booking request
@@ -416,20 +397,25 @@ export const createMobileSaunaBooking = async (req, res) => {
             vessel: vessel._id,
             startTime: pickupDate, // Selected pick-up date
             endTime: dropoffDate, // Selected drop-off date
-            totalPriceCents: finalTotalPriceCents,
+            totalPriceCents: pricing.totalDueNowCents,
             status: "pending",
             daysBooked: days,
             customerName,
             customerEmail: finalCustomerEmail,
-            customerBirthdate: new Date(customerBirthdate),
+            customerBirthdate: birthdate,
             customerPhone,
             deliveryAddress,
             deliveryDistanceKm,
-            deliveryFeeCents,
+            deliveryFeeCents: pricing.deliveryFeeCents,
             additionalWoodBins,
-            woodBinsCostCents,
-            rentalPriceCents, // Store base rental price separately
-            damageDepositCents, // Store deposit amount
+            woodBinsCostCents: pricing.woodBinsCostCents,
+            rentalPriceCents: pricing.rentalPriceCents,
+            baseRentalPriceCents: pricing.baseRentalPriceCents,
+            discountAmountCents: pricing.discountAmountCents,
+            gstCents: pricing.gstCents,
+            gstRate: pricing.gstRate,
+            taxableSubtotalCents: pricing.taxableSubtotalCents,
+            damageDepositCents: pricing.damageDepositCents,
             damageDepositStatus: 'held', // Initial deposit status
             rulesAgreed,
             waiverSigned,
@@ -446,26 +432,31 @@ export const createMobileSaunaBooking = async (req, res) => {
                 pickupDay: dateValidation.pickupDay,
                 dropoffDay: dateValidation.dropoffDay,
                 days,
-                totalPriceCents: finalTotalPriceCents,
-                pricePerDay: Math.round(rentalPriceCents / days),
+                totalPriceCents: pricing.totalDueNowCents,
+                pricePerDay: Math.round(pricing.rentalPriceCents / days),
                 deliveryAddress,
                 status: booking.status,
-                discountApplied: isDiscountApplicable,
+                discountApplied: pricing.discountApplied,
                 requiresWeeklyPrice: dateValidation.requiresWeeklyPrice,
                 pricingBreakdown: {
-                    baseTierPrice: isDiscountApplicable ? Math.round(rentalPriceCents / (1 - vessel.discountPercent / 100)) : rentalPriceCents,
-                    discountAmount: isDiscountApplicable ? Math.round((rentalPriceCents / (1 - vessel.discountPercent / 100)) - rentalPriceCents) : 0,
-                    rentalPrice: rentalPriceCents,
-                    deliveryFee: deliveryFeeCents,
+                    baseTierPrice: pricing.baseRentalPriceCents,
+                    discountAmount: pricing.discountAmountCents,
+                    rentalPrice: pricing.rentalPriceCents,
+                    deliveryFee: pricing.deliveryFeeCents,
                     deliveryDistance: deliveryDistanceKm,
                     deliveryFreeRadius: 20,
+                    taxableSubtotal: pricing.taxableSubtotalCents,
+                    gstRate: pricing.gstRate,
+                    gstAmount: pricing.gstCents,
+                    totalBeforeDeposit: pricing.totalBeforeDepositCents,
+                    damageDeposit: pricing.damageDepositCents,
                     woodBins: {
                         additional: additionalWoodBins,
                         free: 2,
                         total: 2 + additionalWoodBins,
-                        cost: woodBinsCostCents
+                        cost: pricing.woodBinsCostCents
                     },
-                    finalPrice: finalTotalPriceCents
+                    finalPrice: pricing.totalDueNowCents
                 },
                 dateValidation: {
                     isValid: dateValidation.isValid,
@@ -581,11 +572,14 @@ export const getVesselAvailability = async (req, res) => {
  */
 export const getVesselBookedDates = async (req, res) => {
     const { vesselId } = req.params;
+    console.log('📅 Booked dates request:', { vesselId, timestamp: new Date().toISOString() });
     try {
         const vessel = await Vessel.findById(vesselId);
         if (!vessel) {
+            console.warn('⚠️  Vessel not found:', vesselId);
             return res.status(404).json({ message: "Vessel not found" });
         }
+        console.log('✅ Vessel found:', { id: vessel._id, name: vessel.name, type: vessel.type });
         // Get all confirmed and pending bookings
         const bookings = await Booking.find({
             vessel: vesselId,
@@ -593,12 +587,17 @@ export const getVesselBookedDates = async (req, res) => {
         })
             .select('startTime endTime status customerName')
             .sort({ startTime: 1 });
+        console.log('📊 Bookings found:', {
+            count: bookings.length,
+            statuses: bookings.map(b => b.status)
+        });
         const bookedPeriods = bookings.map(booking => ({
             startDate: booking.startTime?.toISOString().split('T')[0],
             endDate: booking.endTime?.toISOString().split('T')[0],
             status: booking.status,
             customerName: booking.customerName || 'Reserved'
         }));
+        console.log('✅ Returning booked periods:', bookedPeriods);
         res.json({
             vessel: {
                 id: vessel._id,
@@ -610,6 +609,11 @@ export const getVesselBookedDates = async (req, res) => {
         });
     }
     catch (err) {
+        console.error('❌ Error fetching booked dates:', {
+            vesselId,
+            error: err.message,
+            stack: err.stack
+        });
         res.status(500).json({ message: err.message });
     }
 };
@@ -668,49 +672,6 @@ export const getMobileSaunaPricingPreview = async (req, res) => {
             });
         }
         const days = dateValidation.days;
-        // Calculate rental price using tiered system
-        let rentalCostCents = 0;
-        if (vessel.pricingTiers) {
-            if (days <= 3) {
-                rentalCostCents = vessel.pricingTiers.days1to3 || 0;
-            }
-            else if (days === 4) {
-                rentalCostCents = vessel.pricingTiers.day4 || 0;
-            }
-            else if (days === 5) {
-                rentalCostCents = vessel.pricingTiers.day5 || 0;
-            }
-            else if (days === 6) {
-                rentalCostCents = vessel.pricingTiers.day6 || 0;
-            }
-            else if (days === 7) {
-                rentalCostCents = vessel.pricingTiers.day7 || 0;
-            }
-            else if (days > 7) {
-                // Multi-week pricing
-                const completeWeeks = Math.floor(days / 7);
-                const remainingDays = days % 7;
-                rentalCostCents = completeWeeks * (vessel.pricingTiers.day7 || 0);
-                if (remainingDays > 0) {
-                    if (remainingDays <= 3) {
-                        rentalCostCents += vessel.pricingTiers.days1to3 || 0;
-                    }
-                    else if (remainingDays === 4) {
-                        rentalCostCents += vessel.pricingTiers.day4 || 0;
-                    }
-                    else if (remainingDays === 5) {
-                        rentalCostCents += vessel.pricingTiers.day5 || 0;
-                    }
-                    else if (remainingDays === 6) {
-                        rentalCostCents += vessel.pricingTiers.day6 || 0;
-                    }
-                }
-            }
-        }
-        else {
-            // Fallback to basePriceCents * days
-            rentalCostCents = vessel.basePriceCents * days;
-        }
         // Calculate delivery fee if address provided
         let deliveryFeeCents = 0;
         let deliveryDistanceKm = 0;
@@ -734,8 +695,19 @@ export const getMobileSaunaPricingPreview = async (req, res) => {
         const woodBins = Math.max(0, Math.min(10, parseInt(additionalWoodBins) || 0));
         const woodBinsCostCents = calculateWoodBinsCost(woodBins);
         const woodBinsBreakdown = getWoodBinsBreakdown(woodBins);
-        // Calculate total
-        const totalCostCents = rentalCostCents + deliveryFeeCents + woodBinsCostCents;
+        const damageDepositCents = 25000;
+        const pricing = calculateMobileSaunaPricing({
+            days,
+            vessel: {
+                basePriceCents: vessel.basePriceCents,
+                pricingTiers: vessel.pricingTiers,
+                discountThreshold: vessel.discountThreshold,
+                discountPercent: vessel.discountPercent,
+            },
+            deliveryFeeCents,
+            woodBinsCostCents,
+            damageDepositCents,
+        });
         res.json({
             vesselId: vessel._id,
             vesselName: vessel.name,
@@ -747,16 +719,33 @@ export const getMobileSaunaPricingPreview = async (req, res) => {
                 dropoffDay: dateValidation.dropoffDay
             },
             pricing: {
-                rentalCostCents,
-                deliveryFeeCents,
-                woodBinsCostCents,
-                totalCostCents,
+                baseRentalCostCents: pricing.baseRentalPriceCents,
+                discountApplied: pricing.discountApplied,
+                discountPercent: pricing.discountPercent,
+                discountThresholdDays: pricing.discountThresholdDays,
+                discountAmountCents: pricing.discountAmountCents,
+                rentalCostCents: pricing.rentalPriceCents,
+                deliveryFeeCents: pricing.deliveryFeeCents,
+                woodBinsCostCents: pricing.woodBinsCostCents,
+                taxableSubtotalCents: pricing.taxableSubtotalCents,
+                gstRate: pricing.gstRate,
+                gstCents: pricing.gstCents,
+                totalCostCents: pricing.totalBeforeDepositCents,
+                damageDepositCents: pricing.damageDepositCents,
+                totalDueNowCents: pricing.totalDueNowCents,
+                dailyIncrementCents: pricing.dailyIncrementCents,
                 // Breakdown in dollars for display
                 breakdown: {
-                    rental: (rentalCostCents / 100).toFixed(2),
-                    delivery: (deliveryFeeCents / 100).toFixed(2),
-                    woodBins: (woodBinsCostCents / 100).toFixed(2),
-                    total: (totalCostCents / 100).toFixed(2)
+                    rentalBase: (pricing.baseRentalPriceCents / 100).toFixed(2),
+                    rentalDiscount: (pricing.discountAmountCents / 100).toFixed(2),
+                    rental: (pricing.rentalPriceCents / 100).toFixed(2),
+                    delivery: (pricing.deliveryFeeCents / 100).toFixed(2),
+                    woodBins: (pricing.woodBinsCostCents / 100).toFixed(2),
+                    taxableSubtotal: (pricing.taxableSubtotalCents / 100).toFixed(2),
+                    gst: (pricing.gstCents / 100).toFixed(2),
+                    total: (pricing.totalBeforeDepositCents / 100).toFixed(2),
+                    deposit: (pricing.damageDepositCents / 100).toFixed(2),
+                    totalDueNow: (pricing.totalDueNowCents / 100).toFixed(2)
                 }
             },
             deliveryDetails: deliveryBreakdown ? {

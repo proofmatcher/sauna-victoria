@@ -172,6 +172,15 @@ export const cancelBooking = async (req: Request, res: Response) => {
   }
 
   booking.status = "cancelled";
+
+  // If payment was never captured, there is no real deposit hold to refund later.
+  // Mark as refunded-equivalent to avoid leaving stale "held" state.
+  if (!booking.stripePaymentIntentId && booking.damageDepositStatus === 'held') {
+    booking.damageDepositStatus = 'refunded';
+    booking.damageDepositRefundDate = new Date();
+    booking.damageDepositNotes = booking.damageDepositNotes || 'Booking cancelled before payment capture; no deposit charge was collected.';
+  }
+
   await booking.save();
 
   res.json({ message: "Booking cancelled successfully", booking });

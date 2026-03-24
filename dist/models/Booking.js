@@ -41,6 +41,11 @@ const bookingSchema = new mongoose.Schema({
     damageDepositNotes: String,
     stripePaymentIntentId: String,
     rentalPriceCents: Number,
+    baseRentalPriceCents: Number,
+    discountAmountCents: Number,
+    gstCents: Number,
+    gstRate: Number,
+    taxableSubtotalCents: Number,
 }, { timestamps: true });
 export default mongoose.model("Booking", bookingSchema);
 //# sourceMappingURL=Booking.js.map

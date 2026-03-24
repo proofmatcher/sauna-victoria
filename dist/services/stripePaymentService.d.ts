@@ -28,9 +28,17 @@ export declare const handlePaymentFailure: (session: Stripe.Checkout.Session) =>
 export declare const verifyPaymentStatus: (bookingId: string) => Promise<{
     status: "pending" | "confirmed" | "cancelled";
     paymentStatus: string;
+    agreementPdfUrl: string | null;
+    agreementAcceptedAt: Date | null;
+    rulesAgreed: boolean;
+    waiverSigned: boolean;
     sessionStatus?: undefined;
 } | {
     status: "pending" | "confirmed" | "cancelled";
     paymentStatus: Stripe.Checkout.Session.PaymentStatus;
     sessionStatus: Stripe.Checkout.Session.Status | null;
+    agreementPdfUrl: string | null;
+    agreementAcceptedAt: Date | null;
+    rulesAgreed: boolean;
+    waiverSigned: boolean;
 }>;

@@ -33,6 +33,11 @@ export interface IBooking extends Document {
     damageDepositNotes?: string;
     stripePaymentIntentId?: string;
     rentalPriceCents?: number;
+    baseRentalPriceCents?: number;
+    discountAmountCents?: number;
+    gstCents?: number;
+    gstRate?: number;
+    taxableSubtotalCents?: number;
 }
 declare const _default: mongoose.Model<IBooking, {}, {}, {}, mongoose.Document<unknown, {}, IBooking, {}, {}> & IBooking & Required<{
     _id: unknown;

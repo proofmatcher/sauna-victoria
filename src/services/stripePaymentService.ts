@@ -259,6 +259,10 @@ export const verifyPaymentStatus = async (bookingId: string) => {
     return {
       status: booking.status,
       paymentStatus: "no_payment_initiated",
+      agreementPdfUrl: booking.agreementPdfUrl || null,
+      agreementAcceptedAt: booking.agreementAcceptedAt || null,
+      rulesAgreed: booking.rulesAgreed || false,
+      waiverSigned: booking.waiverSigned || false,
     };
   }
 
@@ -269,5 +273,9 @@ export const verifyPaymentStatus = async (bookingId: string) => {
     status: booking.status,
     paymentStatus: session.payment_status,
     sessionStatus: session.status,
+    agreementPdfUrl: booking.agreementPdfUrl || null,
+    agreementAcceptedAt: booking.agreementAcceptedAt || null,
+    rulesAgreed: booking.rulesAgreed || false,
+    waiverSigned: booking.waiverSigned || false,
   };
 };
