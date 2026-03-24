@@ -695,11 +695,16 @@ export const getVesselAvailability = async (req: Request, res: Response) => {
 export const getVesselBookedDates = async (req: Request, res: Response) => {
   const { vesselId } = req.params;
 
+  console.log('📅 Booked dates request:', { vesselId, timestamp: new Date().toISOString() });
+
   try {
     const vessel = await Vessel.findById(vesselId);
     if (!vessel) {
+      console.warn('⚠️  Vessel not found:', vesselId);
       return res.status(404).json({ message: "Vessel not found" });
     }
+
+    console.log('✅ Vessel found:', { id: vessel._id, name: vessel.name, type: vessel.type });
 
     // Get all confirmed and pending bookings
     const bookings = await Booking.find({
@@ -709,12 +714,19 @@ export const getVesselBookedDates = async (req: Request, res: Response) => {
     .select('startTime endTime status customerName')
     .sort({ startTime: 1 });
 
+    console.log('📊 Bookings found:', { 
+      count: bookings.length,
+      statuses: bookings.map(b => b.status)
+    });
+
     const bookedPeriods = bookings.map(booking => ({
       startDate: booking.startTime?.toISOString().split('T')[0],
       endDate: booking.endTime?.toISOString().split('T')[0],
       status: booking.status,
       customerName: booking.customerName || 'Reserved'
     }));
+
+    console.log('✅ Returning booked periods:', bookedPeriods);
 
     res.json({
       vessel: {
@@ -727,6 +739,11 @@ export const getVesselBookedDates = async (req: Request, res: Response) => {
     });
 
   } catch (err: any) {
+    console.error('❌ Error fetching booked dates:', {
+      vesselId,
+      error: err.message,
+      stack: err.stack
+    });
     res.status(500).json({ message: err.message });
   }
 };

@@ -28,6 +28,11 @@ import contactRoutes from "./routes/contactRoutes.js";
 
 import { cleanupExpiredBookings } from "./cron/cleanupExpiredBookings.js"; // Import the cron job
 import { scheduleDepositRefunds } from "./cron/refundExpiredDeposits.js"; // Import deposit refund cron job
+import { validateEmailConfig, validateImageConfig } from "./utils/validateConfig.js";
+
+// Validate configuration on startup
+validateEmailConfig();
+validateImageConfig();
 
 // Connect to database
 connectDB(process.env.MONGO_URI || "mongodb://localhost:27017/sauna");
