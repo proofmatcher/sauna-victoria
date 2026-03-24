@@ -8,6 +8,7 @@ import {
   calculateDeliveryFee, 
   calculateWoodBinsCost 
 } from "../utils/deliveryCalculations.js";
+import { calculateMobileSaunaPricing } from "../services/mobileSaunaPricingService.js";
 
 /**
  * Check if vessel has available inventory for the date range
@@ -152,7 +153,6 @@ export const updateBooking = async (req: Request, res: Response) => {
     }
 
     let priceRecalculated = false;
-    let newTotalPrice = booking.totalPriceCents;
 
     // Update dates if provided
     if (startDate && endDate) {
@@ -185,44 +185,11 @@ export const updateBooking = async (req: Request, res: Response) => {
         });
       }
 
-      // Calculate new pricing
       const days = Math.ceil((newEndDate.getTime() - newStartDate.getTime()) / (1000 * 60 * 60 * 24));
-      let rentalPrice = 0;
-
-      if (vessel.pricingTiers) {
-        if (days <= 3) {
-          rentalPrice = vessel.pricingTiers.days1to3 || 0;
-        } else if (days === 4) {
-          rentalPrice = vessel.pricingTiers.day4 || 0;
-        } else if (days === 5) {
-          rentalPrice = vessel.pricingTiers.day5 || 0;
-        } else if (days === 6) {
-          rentalPrice = vessel.pricingTiers.day6 || 0;
-        } else if (days === 7) {
-          rentalPrice = vessel.pricingTiers.day7 || 0;
-        } else if (days > 7) {
-          const completeWeeks = Math.floor(days / 7);
-          const remainingDays = days % 7;
-          rentalPrice = completeWeeks * (vessel.pricingTiers.day7 || 0);
-          
-          if (remainingDays > 0) {
-            if (remainingDays <= 3) {
-              rentalPrice += vessel.pricingTiers.days1to3 || 0;
-            } else if (remainingDays === 4) {
-              rentalPrice += vessel.pricingTiers.day4 || 0;
-            } else if (remainingDays === 5) {
-              rentalPrice += vessel.pricingTiers.day5 || 0;
-            } else if (remainingDays === 6) {
-              rentalPrice += vessel.pricingTiers.day6 || 0;
-            }
-          }
-        }
-      }
 
       booking.startTime = newStartDate;
       booking.endTime = newEndDate;
       booking.daysBooked = days;
-      newTotalPrice = rentalPrice + (booking.deliveryFeeCents || 0) + (booking.woodBinsCostCents || 0);
       priceRecalculated = true;
     }
 
@@ -235,13 +202,10 @@ export const updateBooking = async (req: Request, res: Response) => {
       }
 
       const newWoodBinsCost = calculateWoodBinsCost(additionalWoodBins);
-      const oldWoodBinsCost = booking.woodBinsCostCents || 0;
       
       booking.additionalWoodBins = additionalWoodBins;
       booking.woodBinsCostCents = newWoodBinsCost;
-      
-      // Update total price
-      newTotalPrice = newTotalPrice - oldWoodBinsCost + newWoodBinsCost;
+
       priceRecalculated = true;
     }
 
@@ -250,14 +214,11 @@ export const updateBooking = async (req: Request, res: Response) => {
       try {
         const distanceResult = await calculateDistanceFromHillsideMall(deliveryAddress);
         const newDeliveryFee = calculateDeliveryFee(distanceResult.distanceKm);
-        const oldDeliveryFee = booking.deliveryFeeCents || 0;
 
         booking.deliveryAddress = deliveryAddress;
         booking.deliveryDistanceKm = distanceResult.distanceKm;
         booking.deliveryFeeCents = newDeliveryFee;
 
-        // Update total price
-        newTotalPrice = newTotalPrice - oldDeliveryFee + newDeliveryFee;
         priceRecalculated = true;
 
         console.log(`📍 Updated delivery address: ${deliveryAddress} (${distanceResult.distanceKm}km)`);
@@ -276,7 +237,27 @@ export const updateBooking = async (req: Request, res: Response) => {
 
     // Update total price if recalculated
     if (priceRecalculated) {
-      booking.totalPriceCents = Math.round(newTotalPrice);
+      const effectiveDays = booking.daysBooked || Math.ceil((new Date(booking.endTime!).getTime() - new Date(booking.startTime!).getTime()) / (1000 * 60 * 60 * 24));
+      const recalculatedPricing = calculateMobileSaunaPricing({
+        days: effectiveDays,
+        vessel: {
+          basePriceCents: vessel.basePriceCents,
+          pricingTiers: vessel.pricingTiers,
+          discountThreshold: vessel.discountThreshold,
+          discountPercent: vessel.discountPercent,
+        },
+        deliveryFeeCents: booking.deliveryFeeCents || 0,
+        woodBinsCostCents: booking.woodBinsCostCents || 0,
+        damageDepositCents: booking.damageDepositCents || 25000,
+      });
+
+      booking.rentalPriceCents = recalculatedPricing.rentalPriceCents;
+      booking.baseRentalPriceCents = recalculatedPricing.baseRentalPriceCents;
+      booking.discountAmountCents = recalculatedPricing.discountAmountCents;
+      booking.taxableSubtotalCents = recalculatedPricing.taxableSubtotalCents;
+      booking.gstRate = recalculatedPricing.gstRate;
+      booking.gstCents = recalculatedPricing.gstCents;
+      booking.totalPriceCents = recalculatedPricing.totalDueNowCents;
     }
 
     await booking.save();
@@ -285,7 +266,7 @@ export const updateBooking = async (req: Request, res: Response) => {
       message: "Booking updated successfully", 
       booking,
       priceRecalculated,
-      newTotalPrice: (newTotalPrice / 100).toFixed(2)
+      newTotalPrice: (booking.totalPriceCents / 100).toFixed(2)
     });
   } catch (err) {
     console.error("Error updating booking:", err);
@@ -352,46 +333,31 @@ export const extendRental = async (req: Request, res: Response) => {
       });
     }
 
-    // Calculate new pricing
     const newTotalDays = Math.ceil((extendedEndDate.getTime() - new Date(booking.startTime!).getTime()) / (1000 * 60 * 60 * 24));
-    let newRentalPrice = 0;
-
-    if (vessel.pricingTiers) {
-      if (newTotalDays <= 3) {
-        newRentalPrice = vessel.pricingTiers.days1to3 || 0;
-      } else if (newTotalDays === 4) {
-        newRentalPrice = vessel.pricingTiers.day4 || 0;
-      } else if (newTotalDays === 5) {
-        newRentalPrice = vessel.pricingTiers.day5 || 0;
-      } else if (newTotalDays === 6) {
-        newRentalPrice = vessel.pricingTiers.day6 || 0;
-      } else if (newTotalDays === 7) {
-        newRentalPrice = vessel.pricingTiers.day7 || 0;
-      } else if (newTotalDays > 7) {
-        const completeWeeks = Math.floor(newTotalDays / 7);
-        const remainingDays = newTotalDays % 7;
-        newRentalPrice = completeWeeks * (vessel.pricingTiers.day7 || 0);
-        
-        if (remainingDays > 0) {
-          if (remainingDays <= 3) {
-            newRentalPrice += vessel.pricingTiers.days1to3 || 0;
-          } else if (remainingDays === 4) {
-            newRentalPrice += vessel.pricingTiers.day4 || 0;
-          } else if (remainingDays === 5) {
-            newRentalPrice += vessel.pricingTiers.day5 || 0;
-          } else if (remainingDays === 6) {
-            newRentalPrice += vessel.pricingTiers.day6 || 0;
-          }
-        }
-      }
-    }
-
     const oldTotalPrice = booking.totalPriceCents;
-    const newTotalPrice = newRentalPrice + (booking.deliveryFeeCents || 0) + (booking.woodBinsCostCents || 0);
+    const recalculatedPricing = calculateMobileSaunaPricing({
+      days: newTotalDays,
+      vessel: {
+        basePriceCents: vessel.basePriceCents,
+        pricingTiers: vessel.pricingTiers,
+        discountThreshold: vessel.discountThreshold,
+        discountPercent: vessel.discountPercent,
+      },
+      deliveryFeeCents: booking.deliveryFeeCents || 0,
+      woodBinsCostCents: booking.woodBinsCostCents || 0,
+      damageDepositCents: booking.damageDepositCents || 25000,
+    });
+    const newTotalPrice = recalculatedPricing.totalDueNowCents;
     const additionalCharge = newTotalPrice - oldTotalPrice;
 
     booking.endTime = extendedEndDate;
     booking.daysBooked = newTotalDays;
+    booking.rentalPriceCents = recalculatedPricing.rentalPriceCents;
+    booking.baseRentalPriceCents = recalculatedPricing.baseRentalPriceCents;
+    booking.discountAmountCents = recalculatedPricing.discountAmountCents;
+    booking.taxableSubtotalCents = recalculatedPricing.taxableSubtotalCents;
+    booking.gstRate = recalculatedPricing.gstRate;
+    booking.gstCents = recalculatedPricing.gstCents;
     booking.totalPriceCents = Math.round(newTotalPrice);
 
     await booking.save();

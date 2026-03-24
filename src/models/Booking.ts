@@ -38,6 +38,11 @@ export interface IBooking extends Document {
   damageDepositNotes?: string;       // Admin notes explaining forfeit reason
   stripePaymentIntentId?: string;    // Stripe PaymentIntent ID for refunds
   rentalPriceCents?: number;         // Base rental price (for easier PDF generation)
+  baseRentalPriceCents?: number;     // Rental before discount
+  discountAmountCents?: number;      // Applied discount amount
+  gstCents?: number;                 // GST amount (5% of taxable subtotal)
+  gstRate?: number;                  // GST rate (e.g. 0.05)
+  taxableSubtotalCents?: number;     // Rental + delivery + wood bins before tax
 }
 
 const bookingSchema = new mongoose.Schema<IBooking>({
@@ -82,6 +87,11 @@ const bookingSchema = new mongoose.Schema<IBooking>({
   damageDepositNotes: String,
   stripePaymentIntentId: String,
   rentalPriceCents: Number,
+  baseRentalPriceCents: Number,
+  discountAmountCents: Number,
+  gstCents: Number,
+  gstRate: Number,
+  taxableSubtotalCents: Number,
 }, { timestamps: true });
 
 export default mongoose.model<IBooking>("Booking", bookingSchema);
