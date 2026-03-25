@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
   generateAgreementPreview,
   generateAgreementPDF,
+  generatePublicWaiverPDF,
   getAgreementInfo,
 } from '../controllers/agreementController.js';
 import { protect, verifyGuestOrAdmin } from '../middleware/authMiddleware.js';
@@ -14,6 +15,13 @@ const router = Router();
  * @access  Public (for information only)
  */
 router.get('/info', getAgreementInfo);
+
+/**
+ * @route   GET /api/agreement/public-waiver-pdf
+ * @desc    Generate a generic waiver PDF for pre-booking review
+ * @access  Public
+ */
+router.get('/public-waiver-pdf', generatePublicWaiverPDF);
 
 /**
  * @route   POST /api/agreement/preview

@@ -117,6 +117,41 @@ export const generateAgreementPDF = async (req: Request, res: Response) => {
 };
 
 /**
+ * Generate a public generic waiver PDF for pre-booking review
+ */
+export const generatePublicWaiverPDF = async (_req: Request, res: Response) => {
+  try {
+    const agreementData = {
+      customerName: 'Your Name',
+      deliveryAddress: 'Your Delivery Address',
+      customerEmail: 'your.email@example.com',
+      customerPhone: 'Your Phone Number',
+      agreementDate: new Date().toISOString().split('T')[0],
+      capacity: 'Sauna Capacity',
+      dropoffDate: 'To be confirmed after booking',
+      pickupDate: 'To be confirmed after booking',
+      rentalFee: 'Calculated at checkout',
+    };
+
+    const pdfBuffer = await agreementService.generatePDF(agreementData);
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline; filename="Mobile-Sauna-Waiver-Preview.pdf"');
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    res.setHeader('Content-Length', pdfBuffer.length);
+
+    res.send(pdfBuffer);
+  } catch (error) {
+    console.error('Error generating public waiver PDF:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to generate waiver PDF preview',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+};
+
+/**
  * Get agreement template info
  */
 export const getAgreementInfo = async (req: Request, res: Response) => {
