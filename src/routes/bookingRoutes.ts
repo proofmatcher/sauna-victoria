@@ -25,7 +25,7 @@ router.post("/mobile-sauna", verifyGuestOrAdmin, createMobileSaunaBooking);  // 
 // Admin-only booking management routes
 router.get("/me", protect, getMyBookings);          // View my bookings
 router.put("/cancel/:id", protect, cancelBooking);  // Cancel pending booking
-router.get("/payment-status/:bookingId", protect, checkPaymentStatus); // Check payment status
+router.get("/payment-status/:bookingId", verifyGuestOrAdmin, checkPaymentStatus); // Check payment status
 
 // Availability routes
 router.get("/vessels/:vesselId/availability", getVesselAvailability); // Get day-by-day availability

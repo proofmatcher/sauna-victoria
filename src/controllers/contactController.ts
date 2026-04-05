@@ -52,18 +52,19 @@ export const submitContactForm = async (req: Request, res: Response): Promise<vo
         <style>
           body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; }
           .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: linear-gradient(135deg, #8b5a2b 0%, #a0522d 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+          .header { background: linear-gradient(135deg, #2f3a24 0%, #1e2718 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
           .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
-          .info-box { background: white; padding: 20px; margin: 20px 0; border-left: 4px solid #8b4513; border-radius: 4px; }
+          .info-box { background: white; padding: 20px; margin: 20px 0; border-left: 4px solid #ba6230; border-radius: 4px; }
           .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; color: #666; font-size: 14px; }
           h1 { margin: 0; font-size: 28px; }
-          h2 { color: #8b4513; margin-top: 0; }
-          .label { font-weight: 600; color: #8b4513; }
+          h2 { color: #ba6230; margin-top: 0; }
+          .label { font-weight: 600; color: #ba6230; }
         </style>
       </head>
       <body>
         <div class="container">
           <div class="header">
+            <img src="${process.env.FRONTEND_URL || 'https://victoriasaunarentals.ca'}/logos/logo-cream.png" alt="Victoria Mobile Sauna Rentals" style="height: 60px; max-width: 100%; margin-bottom: 20px; display: inline-block;" />
             <h1>🙏 Thank You for Contacting Us</h1>
           </div>
           <div class="content">
@@ -104,20 +105,21 @@ export const submitContactForm = async (req: Request, res: Response): Promise<vo
         <style>
           body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; }
           .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+          .header { background: linear-gradient(135deg, #2f3a24 0%, #1e2718 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
           .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
-          .info-box { background: white; padding: 20px; margin: 20px 0; border-left: 4px solid #3498db; border-radius: 4px; }
+          .info-box { background: white; padding: 20px; margin: 20px 0; border-left: 4px solid #ba6230; border-radius: 4px; }
           .label { font-weight: 600; color: #2c3e50; display: inline-block; min-width: 120px; }
           .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; text-transform: uppercase; }
-          .badge-new { background: #e74c3c; color: white; }
+          .badge-new { background: #ba6230; color: white; }
           h1 { margin: 0; font-size: 26px; }
         </style>
       </head>
       <body>
         <div class="container">
           <div class="header">
+            <img src="${process.env.FRONTEND_URL || 'https://victoriasaunarentals.ca'}/logos/logo-cream.png" alt="Victoria Mobile Sauna Rentals" style="height: 60px; max-width: 100%; margin-bottom: 20px; display: inline-block;" />
             <h1>📧 New Contact Form Submission</h1>
-            <span class="badge badge-new">New</span>
+            <span class="badge badge-new" style="margin-top: 10px;">New</span>
           </div>
           <div class="content">
             <div class="info-box">

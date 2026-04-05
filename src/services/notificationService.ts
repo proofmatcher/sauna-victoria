@@ -30,8 +30,11 @@ export const notifyStaffAboutTrip = async (tripId: string) => {
     for (const staff of trip.assignedStaff as any[]) {
       const emailSubject = `Trip Assignment: ${trip.title}`;
       const emailBody = `
-        <div style="font-family: Arial, sans-serif; padding: 20px;">
-          <h2>🚤 You've been assigned to a trip!</h2>
+        <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+          <div style="background-color: #2f3a24; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; margin-bottom: 20px;">
+            <img src="${process.env.FRONTEND_URL || 'https://victoriasaunarentals.ca'}/logos/logo-cream.png" alt="Victoria Mobile Sauna Rentals" style="height: 50px; display: inline-block; border: 0;" />
+          </div>
+          <h2 style="color: #2f3a24;">🚤 You've been assigned to a trip!</h2>
           
           <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
             <h3>Trip Details:</h3>
@@ -117,7 +120,10 @@ export const notifyCustomerBookingConfirmed = async (bookingId: string) => {
 
     const emailSubject = `Booking Confirmed: ${trip.title}`;
     const emailBody = `
-      <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px;">
+      <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+        <div style="background-color: #2f3a24; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; margin-bottom: 20px;">
+          <img src="${process.env.FRONTEND_URL || 'https://victoriasaunarentals.ca'}/logos/logo-cream.png" alt="Victoria Mobile Sauna Rentals" style="height: 50px; display: inline-block; border: 0;" />
+        </div>
         <h2 style="color: #2c3e50;">🎉 Your Booking is Confirmed!</h2>
         
         <p>Dear ${customerName},</p>
@@ -262,7 +268,10 @@ export const notifyCustomerMobileSaunaBookingConfirmed = async (bookingId: strin
 
     const emailSubject = `Mobile Sauna Rental Confirmed - ${vessel.name}`;
     const emailBody = `
-      <div style="font-family: Arial, sans-serif; padding: 30px; max-width: 600px; margin: 0 auto; color: #333;">
+      <div style="font-family: Arial, sans-serif; padding: 30px; max-width: 600px; margin: 0 auto; color: #333; background-color: #ffffff;">
+        <div style="background-color: #2f3a24; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; margin-bottom: 20px;">
+          <img src="${process.env.FRONTEND_URL || 'https://victoriasaunarentals.ca'}/logos/logo-cream.png" alt="Victoria Mobile Sauna Rentals" style="height: 50px; display: inline-block; border: 0;" />
+        </div>
         <h2 style="color: #2c3e50; margin-bottom: 20px;">Hello ${customerName},</h2>
         
         <p style="font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
@@ -440,8 +449,11 @@ export const sendTripReminders = async (tripId: string) => {
 
       const emailSubject = `Reminder: Your Trip Tomorrow - ${trip.title}`;
       const emailBody = `
-        <div style="font-family: Arial, sans-serif; padding: 20px;">
-          <h2>⏰ Trip Reminder</h2>
+        <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+          <div style="background-color: #2f3a24; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; margin-bottom: 20px;">
+            <img src="${process.env.FRONTEND_URL || 'https://victoriasaunarentals.ca'}/logos/logo-cream.png" alt="Victoria Mobile Sauna Rentals" style="height: 50px; display: inline-block; border: 0;" />
+          </div>
+          <h2 style="color: #2f3a24;">⏰ Trip Reminder</h2>
           <p>Hi ${customerName},</p>
           <p>This is a friendly reminder about your upcoming sauna boat trip tomorrow!</p>
           
@@ -470,8 +482,11 @@ export const sendTripReminders = async (tripId: string) => {
     for (const staff of trip.assignedStaff as any[]) {
       const emailSubject = `Trip Reminder: ${trip.title} Tomorrow`;
       const emailBody = `
-        <div style="font-family: Arial, sans-serif; padding: 20px;">
-          <h2>⏰ Staff Reminder</h2>
+        <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+          <div style="background-color: #2f3a24; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; margin-bottom: 20px;">
+            <img src="${process.env.FRONTEND_URL || 'https://victoriasaunarentals.ca'}/logos/logo-cream.png" alt="Victoria Mobile Sauna Rentals" style="height: 50px; display: inline-block; border: 0;" />
+          </div>
+          <h2 style="color: #2f3a24;">⏰ Staff Reminder</h2>
           <p>Hi ${staff.name},</p>
           <p>Reminder: You're scheduled for a trip tomorrow.</p>
           

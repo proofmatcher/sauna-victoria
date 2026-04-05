@@ -35,7 +35,8 @@ const generateOTPEmail = (code: string): string => {
             <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
               <!-- Header -->
               <tr>
-                <td style="background: linear-gradient(135deg, #8b5a2b 0%, #a0522d 100%); padding: 40px 30px; text-align: center;">
+                <td style="background: linear-gradient(135deg, #2f3a24 0%, #1e2718 100%); padding: 40px 30px; text-align: center;">
+                  <img src="${process.env.FRONTEND_URL || 'https://victoriasaunarentals.ca'}/logos/logo-cream.png" alt="Victoria Mobile Sauna Rentals" style="height: 60px; max-width: 100%; margin-bottom: 20px; display: inline-block;" />
                   <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 600;">Verify Your Email</h1>
                 </td>
               </tr>

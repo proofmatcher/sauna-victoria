@@ -268,7 +268,10 @@ export const sendAutoDepositRefundEmail = async (booking: any) => {
     
     const emailSubject = `Damage Deposit Refunded - $${depositAmount}`;
     const emailBody = `
-      <div style="font-family: Arial, sans-serif; padding: 30px; max-width: 600px; margin: 0 auto; color: #333;">
+      <div style="font-family: Arial, sans-serif; padding: 30px; max-width: 600px; margin: 0 auto; color: #333; background-color: #ffffff;">
+        <div style="background-color: #2f3a24; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; margin-bottom: 20px;">
+          <img src="${process.env.FRONTEND_URL || 'https://victoriasaunarentals.ca'}/logos/logo-cream.png" alt="Victoria Mobile Sauna Rentals" style="height: 50px; display: inline-block; border: 0;" />
+        </div>
         <h2 style="color: #27ae60; margin-bottom: 20px;">💰 Great News, ${customerName}!</h2>
         
         <p style="font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
@@ -335,8 +338,11 @@ const sendDepositForfeitEmail = async (booking: any, reason: string) => {
     
     const emailSubject = `Damage Deposit Held - $${depositAmount}`;
     const emailBody = `
-      <div style="font-family: Arial, sans-serif; padding: 30px; max-width: 600px; margin: 0 auto; color: #333;">
-        <h2 style="color: #e74c3c; margin-bottom: 20px;">Damage Deposit Notification</h2>
+      <div style="font-family: Arial, sans-serif; padding: 30px; max-width: 600px; margin: 0 auto; color: #333; background-color: #ffffff;">
+        <div style="background-color: #2f3a24; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; margin-bottom: 20px;">
+          <img src="${process.env.FRONTEND_URL || 'https://victoriasaunarentals.ca'}/logos/logo-cream.png" alt="Victoria Mobile Sauna Rentals" style="height: 50px; display: inline-block; border: 0;" />
+        </div>
+        <h2 style="color: #2c3e50; margin-bottom: 20px;">Deposit Return Initiated</h2>
         
         <p style="font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
           Hello ${customerName},
@@ -400,7 +406,10 @@ const sendManualDepositRefundEmail = async (booking: any) => {
     
     const emailSubject = `Damage Deposit Refunded - $${depositAmount}`;
     const emailBody = `
-      <div style="font-family: Arial, sans-serif; padding: 30px; max-width: 600px; margin: 0 auto; color: #333;">
+      <div style="font-family: Arial, sans-serif; padding: 30px; max-width: 600px; margin: 0 auto; color: #333; background-color: #ffffff;">
+        <div style="background-color: #2f3a24; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; margin-bottom: 20px;">
+          <img src="${process.env.FRONTEND_URL || 'https://victoriasaunarentals.ca'}/logos/logo-cream.png" alt="Victoria Mobile Sauna Rentals" style="height: 50px; display: inline-block; border: 0;" />
+        </div>
         <h2 style="color: #27ae60; margin-bottom: 20px;">💰 Great News, ${customerName}!</h2>
         
         <p style="font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
