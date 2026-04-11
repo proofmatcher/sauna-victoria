@@ -15,7 +15,9 @@
     "test:phase2": "jest src/tests/phase2-controllers.test.ts",
     "test:phase3": "jest src/tests/phase3-middleware-routes.test.ts",
     "test:phase4": "jest src/tests/phase4-booking-integration.test.ts",
-    "create-admin": "tsx src/scripts/createFirstAdmin.ts"
+    "create-admin": "tsx src/scripts/createFirstAdmin.ts",
+    "cleanup-test-bookings:dry-run": "tsx src/scripts/cleanupTestBookings.ts --dry-run",
+    "cleanup-test-bookings:execute": "tsx src/scripts/cleanupTestBookings.ts --execute"
   },
   "keywords": [],
   "author": "",
