@@ -107,22 +107,28 @@ export const handlePaymentSuccess = async (session: Stripe.Checkout.Session) => 
     console.log(`💳 Stored PaymentIntent ID: ${booking.stripePaymentIntentId}`);
   }
 
-  // For mobile sauna bookings, set the rental period starting now
+  // For mobile sauna bookings, keep the customer-selected pickup/drop-off dates.
+  // Only backfill missing dates for legacy records that may not have start/end saved.
   if (booking.daysBooked && booking.daysBooked > 0) {
     // Check if this is a mobile sauna booking by populating vessel
     await booking.populate('vessel');
     const vessel = booking.vessel as any;
     
     if (vessel && vessel.type === 'mobile_sauna') {
-      const rentalStartTime = new Date(); // Rental starts when payment is confirmed
-      const rentalEndTime = new Date(rentalStartTime);
-      rentalEndTime.setDate(rentalEndTime.getDate() + booking.daysBooked);
-      
-      booking.startTime = rentalStartTime;
-      booking.endTime = rentalEndTime;
-      
+      if (!booking.startTime || !booking.endTime) {
+        const rentalStartTime = new Date();
+        rentalStartTime.setHours(0, 0, 0, 0);
+        const rentalEndTime = new Date(rentalStartTime);
+        rentalEndTime.setDate(rentalEndTime.getDate() + booking.daysBooked);
+
+        booking.startTime = rentalStartTime;
+        booking.endTime = rentalEndTime;
+
+        console.warn(`⚠️ Missing rental dates for booking ${bookingId}. Backfilled from payment date for legacy compatibility.`);
+      }
+
       console.log(`🚀 Mobile sauna rental activated: ${vessel.name}`);
-      console.log(`📅 Rental period: ${rentalStartTime.toISOString()} to ${rentalEndTime.toISOString()}`);
+      console.log(`📅 Rental period: ${booking.startTime?.toISOString()} to ${booking.endTime?.toISOString()}`);
       console.log(`🏠 Delivery address: ${booking.deliveryAddress}`);
     }
   }

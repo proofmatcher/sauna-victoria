@@ -29,6 +29,22 @@ interface DistanceCalculationResult {
   destinationAddress: string;
 }
 
+const isDeliveryFallbackEnabled = (): boolean => {
+  return process.env.DELIVERY_DISTANCE_TEST_MODE === 'true';
+};
+
+const getFallbackDistanceResult = (deliveryAddress: string): DistanceCalculationResult => {
+  const fallbackDistanceKm = Number(process.env.DELIVERY_DISTANCE_FALLBACK_KM || 15);
+  const fallbackDurationMinutes = Number(process.env.DELIVERY_DISTANCE_FALLBACK_MINUTES || 20);
+
+  return {
+    distanceKm: Number.isFinite(fallbackDistanceKm) && fallbackDistanceKm > 0 ? fallbackDistanceKm : 15,
+    durationMinutes: Number.isFinite(fallbackDurationMinutes) && fallbackDurationMinutes > 0 ? fallbackDurationMinutes : 20,
+    originAddress: HILLSIDE_MALL_ADDRESS,
+    destinationAddress: deliveryAddress,
+  };
+};
+
 const isWithinVancouverIslandBounds = (lat: number, lng: number): boolean => {
   return (
     lat >= VANCOUVER_ISLAND_BOUNDS.minLat &&
@@ -68,6 +84,11 @@ export async function calculateDistanceFromHillsideMall(
   deliveryAddress: string
 ): Promise<DistanceCalculationResult> {
   const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+
+  if (isDeliveryFallbackEnabled()) {
+    console.warn('Delivery distance fallback enabled for testing. Google Maps requests will be skipped.');
+    return getFallbackDistanceResult(deliveryAddress);
+  }
 
   if (!apiKey) {
     throw new Error("Google Maps API key not configured. Please set GOOGLE_MAPS_API_KEY in environment variables.");
@@ -121,6 +142,15 @@ export async function calculateDistanceFromHillsideMall(
     };
 
   } catch (error: any) {
+    if (isDeliveryFallbackEnabled()) {
+      console.warn('Google Maps request failed. Falling back to test delivery distance.', {
+        deliveryAddress,
+        error: error?.message || error,
+      });
+
+      return getFallbackDistanceResult(deliveryAddress);
+    }
+
     console.error('Google Maps API Error:', error);
     throw new Error(`Failed to calculate delivery distance: ${error.message}`);
   }
