@@ -1,5 +1,6 @@
 import { createBooking } from "../services/bookingService.js";
 import Booking from "../models/Booking.js";
+import BlockedPeriod from "../models/BlockedPeriod.js";
 import Trip from "../models/Trip.js";
 import Vessel from "../models/Vessel.js";
 import { User } from "../models/User.js";
@@ -19,6 +20,19 @@ async function checkVesselAvailability(vesselId, startDate, endDate) {
         throw new Error("Vessel not found");
     }
     const totalUnits = vessel.inventory || 1;
+    // A blocked period makes the vessel unavailable regardless of booking count.
+    const blockedPeriodsCount = await BlockedPeriod.countDocuments({
+        vessel: vesselId,
+        startDate: { $lte: endDate },
+        endDate: { $gte: startDate },
+    });
+    if (blockedPeriodsCount > 0) {
+        return {
+            available: 0,
+            booked: totalUnits,
+            total: totalUnits,
+        };
+    }
     // Count confirmed or pending bookings that overlap with requested dates
     // A booking overlaps if: booking.startTime <= endDate AND booking.endTime >= startDate
     const bookedUnits = await Booking.countDocuments({
@@ -514,27 +528,44 @@ export const getVesselAvailability = async (req, res) => {
             startTime: { $lte: end },
             endTime: { $gte: start }
         }).select('startTime endTime status');
+        const blockedPeriods = await BlockedPeriod.find({
+            vessel: vesselId,
+            startDate: { $lte: end },
+            endDate: { $gte: start },
+        }).select('startDate endDate reason');
         // Build day-by-day availability
         const availability = [];
         const currentDate = new Date(start);
         const totalUnits = vessel.inventory || 1;
         while (currentDate <= end) {
+            const activeBlock = blockedPeriods.find((period) => {
+                const blockStart = new Date(period.startDate);
+                const blockEnd = new Date(period.endDate);
+                blockStart.setHours(0, 0, 0, 0);
+                blockEnd.setHours(0, 0, 0, 0);
+                return currentDate >= blockStart && currentDate <= blockEnd;
+            });
             // Count how many bookings include this date
-            const bookedUnits = bookings.filter(booking => {
+            const bookedUnitsFromBookings = bookings.filter(booking => {
                 const bookingStart = new Date(booking.startTime);
                 const bookingEnd = new Date(booking.endTime);
                 bookingStart.setHours(0, 0, 0, 0);
                 bookingEnd.setHours(0, 0, 0, 0);
                 return currentDate >= bookingStart && currentDate <= bookingEnd;
             }).length;
-            const availableUnits = totalUnits - bookedUnits;
+            const blockedByMaintenance = Boolean(activeBlock);
+            const bookedUnits = blockedByMaintenance ? totalUnits : bookedUnitsFromBookings;
+            const availableUnits = blockedByMaintenance ? 0 : totalUnits - bookedUnits;
             availability.push({
                 date: currentDate.toISOString().split('T')[0],
                 dayOfWeek: currentDate.toLocaleDateString('en-US', { weekday: 'long' }),
                 totalUnits,
                 bookedUnits,
                 availableUnits,
-                isAvailable: availableUnits > 0
+                isAvailable: availableUnits > 0,
+                isBlocked: blockedByMaintenance,
+                blockedReason: activeBlock?.reason || null,
+                unavailableReason: blockedByMaintenance ? 'maintenance' : (availableUnits === 0 ? 'fully_booked' : null)
             });
             currentDate.setDate(currentDate.getDate() + 1);
         }
@@ -597,6 +628,21 @@ export const getVesselBookedDates = async (req, res) => {
             status: booking.status,
             customerName: booking.customerName || 'Reserved'
         }));
+        const blockedPeriods = await BlockedPeriod.find({ vessel: vesselId })
+            .select('startDate endDate reason')
+            .sort({ startDate: 1 });
+        const blockedAsBookedPeriods = blockedPeriods.map((period) => ({
+            startDate: period.startDate?.toISOString().split('T')[0],
+            endDate: period.endDate?.toISOString().split('T')[0],
+            status: 'blocked',
+            customerName: period.reason === 'personal_use' ? 'Maintenance Block' : 'Maintenance Block',
+            reason: period.reason,
+        }));
+        const mergedPeriods = [...bookedPeriods, ...blockedAsBookedPeriods].sort((a, b) => {
+            const dateA = new Date(a.startDate || 0).getTime();
+            const dateB = new Date(b.startDate || 0).getTime();
+            return dateA - dateB;
+        });
         console.log('✅ Returning booked periods:', bookedPeriods);
         res.json({
             vessel: {
@@ -605,7 +651,8 @@ export const getVesselBookedDates = async (req, res) => {
                 totalUnits: vessel.inventory || 1
             },
             totalBookings: bookings.length,
-            bookedPeriods
+            totalBlockedPeriods: blockedPeriods.length,
+            bookedPeriods: mergedPeriods
         });
     }
     catch (err) {

@@ -2,12 +2,17 @@ import express from "express";
 import { protect } from "../middleware/authMiddleware.js";
 import { authorize } from "../middleware/roleMiddleware.js";
 import { getMobileSaunaBookings, updateMobileSaunaBooking, deleteMobileSaunaBooking, getMobileSaunaBookingById, } from "../controllers/adminMobileSaunaController.js";
+import { createBlockedPeriod, deleteBlockedPeriod, listBlockedPeriods, } from '../controllers/adminBlockedPeriodController.js';
 const router = express.Router();
 // All routes require admin authentication
 router.use(protect);
 router.use(authorize("admin"));
 // GET /api/admin/mobile-saunas - Get all confirmed mobile sauna bookings
 router.get("/", getMobileSaunaBookings);
+// Blocked periods management (must be above /:id route)
+router.get('/blocked-dates', listBlockedPeriods);
+router.post('/blocked-dates', createBlockedPeriod);
+router.delete('/blocked-dates/:id', deleteBlockedPeriod);
 // GET /api/admin/mobile-saunas/:id - Get single mobile sauna booking
 router.get("/:id", getMobileSaunaBookingById);
 // PUT /api/admin/mobile-saunas/:id - Update mobile sauna booking details

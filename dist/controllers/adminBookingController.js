@@ -1,4 +1,5 @@
 import Booking from "../models/Booking.js";
+import BlockedPeriod from "../models/BlockedPeriod.js";
 import Trip from "../models/Trip.js";
 import Vessel from "../models/Vessel.js";
 import { validateRentalDates } from "../utils/rentalDateUtils.js";
@@ -14,6 +15,18 @@ async function checkVesselAvailability(vesselId, startDate, endDate, excludeBook
         throw new Error("Vessel not found");
     }
     const totalUnits = vessel.inventory || 1;
+    const blockedPeriodsCount = await BlockedPeriod.countDocuments({
+        vessel: vesselId,
+        startDate: { $lte: endDate },
+        endDate: { $gte: startDate },
+    });
+    if (blockedPeriodsCount > 0) {
+        return {
+            available: 0,
+            booked: totalUnits,
+            total: totalUnits,
+        };
+    }
     const query = {
         vessel: vesselId,
         status: { $in: ['pending', 'confirmed'] },

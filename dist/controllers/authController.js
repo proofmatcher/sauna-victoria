@@ -66,7 +66,8 @@ export const registerUser = async (req, res) => {
         const verificationURL = `${process.env.FRONTEND_URL}/verify-email/${verificationToken}`;
         const emailHtml = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background: linear-gradient(135deg, #8b5a2b 0%, #a0522d 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+        <div style="background: linear-gradient(135deg, #2f3a24 0%, #1e2718 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+          <img src="${process.env.FRONTEND_URL || 'https://victoriasaunarentals.ca'}/logos/logo-cream.png" alt="Victoria Mobile Sauna Rentals" style="height: 60px; max-width: 100%; margin-bottom: 20px; display: inline-block;" />
           <h1 style="color: white; margin: 0;">Welcome to Our Platform!</h1>
         </div>
         <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
@@ -242,7 +243,8 @@ export const resendVerificationEmail = async (req, res) => {
         const verificationURL = `${process.env.FRONTEND_URL}/verify-email/${verificationToken}`;
         const emailHtml = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background: linear-gradient(135deg, #8b5a2b 0%, #a0522d 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+        <div style="background: linear-gradient(135deg, #2f3a24 0%, #1e2718 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+          <img src="${process.env.FRONTEND_URL || 'https://victoriasaunarentals.ca'}/logos/logo-cream.png" alt="Victoria Mobile Sauna Rentals" style="height: 60px; max-width: 100%; margin-bottom: 20px; display: inline-block;" />
           <h1 style="color: white; margin: 0;">Email Verification</h1>
         </div>
         <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
@@ -298,7 +300,20 @@ export const forgotPassword = async (req, res) => {
     // For production - send email and return generic message
     try {
         const resetURL = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
-        const message = `<p>Click below to reset your password:</p><a href="${resetURL}">Reset Password</a>`;
+        const message = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #2f3a24 0%, #1e2718 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+          <img src="${process.env.FRONTEND_URL || 'https://victoriasaunarentals.ca'}/logos/logo-cream.png" alt="Victoria Mobile Sauna Rentals" style="height: 60px; max-width: 100%; margin-bottom: 20px; display: inline-block;" />
+          <h1 style="color: white; margin: 0;">Password Reset</h1>
+        </div>
+        <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+          <p style="color: #666; font-size: 16px; line-height: 1.6;">Click below to reset your password:</p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${resetURL}" style="background: #8b4513; color: white; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; display: inline-block;">Reset Password</a>
+          </div>
+        </div>
+      </div>
+    `;
         await sendEmail(user.email, "Password Reset", message);
         res.json({ message: "Password reset link sent to your email" });
     }

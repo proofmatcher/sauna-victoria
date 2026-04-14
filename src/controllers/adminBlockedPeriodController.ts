@@ -103,8 +103,8 @@ export const createBlockedPeriod = async (req: Request, res: Response) => {
     const overlappingBookings = await Booking.countDocuments({
       vessel: vesselId,
       status: { $in: ['pending', 'confirmed'] },
-      startTime: { $lte: normalizedEnd },
-      endTime: { $gte: normalizedStart },
+      startTime: { $lt: normalizedEnd },
+      endTime: { $gt: normalizedStart },
     });
 
     if (overlappingBookings > 0) {
