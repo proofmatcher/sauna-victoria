@@ -18,6 +18,7 @@ export interface IVessel extends Document {
         day6: number;
         day7: number;
     };
+    description?: string;
     images?: string[];
     imageVariants?: {
         mobile?: string;
