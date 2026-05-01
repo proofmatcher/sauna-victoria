@@ -96,7 +96,7 @@ export const calculateMobileSaunaPricing = (input: MobileSaunaPriceInput): Mobil
   const { days, vessel, deliveryFeeCents, woodBinsCostCents, damageDepositCents } = input;
   const { baseRentalPriceCents, dailyIncrementCents } = calculateBaseRentalPriceCents(days, vessel);
 
-  const configuredThreshold = Math.max(MINIMUM_DISCOUNT_DAYS, vessel.discountThreshold ?? MINIMUM_DISCOUNT_DAYS);
+  const configuredThreshold = vessel.discountThreshold ?? MINIMUM_DISCOUNT_DAYS;
   const discountPercent = vessel.discountPercent && vessel.discountPercent > 0 ? vessel.discountPercent : 0;
   const discountApplied = discountPercent > 0 && days >= configuredThreshold;
 

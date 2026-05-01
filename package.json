@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
-    "build": "./node_modules/.bin/tsc",
-    "start": "node -r dotenv/config dist/server.js",
+    "dev": "node init && ts-node-dev --respawn --transpile-only src/server.ts",
+    "build": "node init && ./node_modules/.bin/tsc",
+    "start": "node init && node -r dotenv/config dist/server.js",
     "clean": "rm -rf dist",
     "type-check": "tsc --noEmit",
     "test": "jest",
