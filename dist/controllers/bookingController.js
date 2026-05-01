@@ -33,13 +33,14 @@ async function checkVesselAvailability(vesselId, startDate, endDate) {
             total: totalUnits,
         };
     }
-    // Count confirmed or pending bookings that overlap with requested dates
-    // A booking overlaps if: booking.startTime <= endDate AND booking.endTime >= startDate
+    // Count confirmed or pending bookings that overlap with requested dates.
+    // Use half-open intervals [start, end): booking.startTime < endDate AND booking.endTime > startDate.
+    // This allows same-day turnover where a new booking starts on a prior booking's end date.
     const bookedUnits = await Booking.countDocuments({
         vessel: vesselId,
         status: { $in: ['pending', 'confirmed'] },
-        startTime: { $lte: endDate },
-        endTime: { $gte: startDate }
+        startTime: { $lt: endDate },
+        endTime: { $gt: startDate }
     });
     const availableUnits = totalUnits - bookedUnits;
     return {
@@ -525,8 +526,8 @@ export const getVesselAvailability = async (req, res) => {
         const bookings = await Booking.find({
             vessel: vesselId,
             status: { $in: ['pending', 'confirmed'] },
-            startTime: { $lte: end },
-            endTime: { $gte: start }
+            startTime: { $lt: end },
+            endTime: { $gt: start }
         }).select('startTime endTime status');
         const blockedPeriods = await BlockedPeriod.find({
             vessel: vesselId,
@@ -545,13 +546,14 @@ export const getVesselAvailability = async (req, res) => {
                 blockEnd.setHours(0, 0, 0, 0);
                 return currentDate >= blockStart && currentDate <= blockEnd;
             });
-            // Count how many bookings include this date
+            // Count bookings that occupy this day using half-open intervals.
+            // The booking end day is treated as checkout/turnover and remains available.
             const bookedUnitsFromBookings = bookings.filter(booking => {
                 const bookingStart = new Date(booking.startTime);
                 const bookingEnd = new Date(booking.endTime);
                 bookingStart.setHours(0, 0, 0, 0);
                 bookingEnd.setHours(0, 0, 0, 0);
-                return currentDate >= bookingStart && currentDate <= bookingEnd;
+                return currentDate >= bookingStart && currentDate < bookingEnd;
             }).length;
             const blockedByMaintenance = Boolean(activeBlock);
             const bookedUnits = blockedByMaintenance ? totalUnits : bookedUnitsFromBookings;
