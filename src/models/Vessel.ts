@@ -20,6 +20,7 @@ export interface IVessel extends Document {
     day6: number;        // Total price for 6 day rental
     day7: number;        // Total price for 7 day rental
   };
+  description?: string; // Rich HTML description
   // Images
   images?: string[]; // Array of original image paths
   imageVariants?: {
@@ -49,6 +50,7 @@ const vesselSchema = new mongoose.Schema<IVessel>({
     day6: { type: Number },     // Total price for 6 day rental (cents)
     day7: { type: Number },     // Total price for 7 day rental (cents)
   },
+  description: { type: String, default: "" },
   images: [{ type: String }],
   imageVariants: [{
     mobile: { type: String },
