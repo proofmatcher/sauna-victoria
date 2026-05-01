@@ -14,6 +14,7 @@ export const createVessel = async (req: Request, res: Response) => {
     discountThreshold, 
     discountPercent,
     pickupDropoffDay,
+    description,
     pricingTiers: rawPricingTiers
   } = req.body;
   
@@ -68,6 +69,7 @@ export const createVessel = async (req: Request, res: Response) => {
     discountThreshold: parsedDiscountThreshold,
     discountPercent: parsedDiscountPercent,
     pickupDropoffDay: parsedPickupDropoffDay,
+    description: description || '',
     pricingTiers,
     images: images.length > 0 ? images : undefined,
     imageVariants: imageVariants.length > 0 ? imageVariants : undefined
