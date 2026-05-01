@@ -1,0 +1,57 @@
+services:
+  # MongoDB - your data stays here
+  mongo:
+    image: mongo
+    container_name: mongo
+    restart: unless-stopped
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=Sauna123!  # TODO: Change in production!
+    ports:
+      - "127.0.0.1:27017:27017"  # Only localhost access (secure)
+    volumes:
+      - ~/mongo-data:/data/db   # Persist outside git directory
+    networks:
+      - sauna-network
+
+  # Mongo Express - Admin UI (optional, disable in production if not needed)
+  mongo-express:
+    image: mongo-express
+    container_name: mongo-express
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8081:8081"  # Only localhost access (secure)
+    environment:
+      - ME_CONFIG_MONGODB_ADMINUSERNAME=admin
+      - ME_CONFIG_MONGODB_ADMINPASSWORD=Sauna123!
+      - ME_CONFIG_MONGODB_URL=mongodb://admin:Sauna123!@mongo:27017/
+      - ME_CONFIG_BASICAUTH_USERNAME=admin    # Add basic auth!
+      - ME_CONFIG_BASICAUTH_PASSWORD=Sauna123!   # Change this!
+    depends_on:
+      - mongo
+    networks:
+      - sauna-network
+
+  # Backend - Node.js + Express + Puppeteer
+  backend:
+    build: .
+    container_name: backend
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      - NODE_ENV=production
+      - MONGO_URI=mongodb://admin:root@mongo:27017/sauna?authSource=admin
+    env_file:
+      - .env
+    depends_on:
+      - mongo
+    networks:
+      - sauna-network
+    volumes:
+      - ./logs:/app/logs          # Persist logs
+      - ./templates:/app/templates # PDF templates
+
+networks:
+  sauna-network:
+    driver: bridge

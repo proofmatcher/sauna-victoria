@@ -19,6 +19,7 @@ const vesselSchema = new mongoose.Schema({
         day6: { type: Number }, // Total price for 6 day rental (cents)
         day7: { type: Number }, // Total price for 7 day rental (cents)
     },
+    description: { type: String, default: "" },
     images: [{ type: String }],
     imageVariants: [{
             mobile: { type: String },

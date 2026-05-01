@@ -30,8 +30,8 @@ async function checkVesselAvailability(vesselId, startDate, endDate, excludeBook
     const query = {
         vessel: vesselId,
         status: { $in: ['pending', 'confirmed'] },
-        startTime: { $lte: endDate },
-        endTime: { $gte: startDate }
+        startTime: { $lt: endDate },
+        endTime: { $gt: startDate }
     };
     // Exclude current booking if updating
     if (excludeBookingId) {
