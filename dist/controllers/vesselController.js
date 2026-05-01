@@ -2,7 +2,7 @@ import Vessel from "../models/Vessel.js";
 import Trip from "../models/Trip.js";
 import { processVesselImage, deleteImageFiles } from "../config/imageUpload.js";
 export const createVessel = async (req, res) => {
-    const { name, type, capacity, inventory, basePriceCents, minimumDays, discountThreshold, discountPercent, pickupDropoffDay, pricingTiers: rawPricingTiers } = req.body;
+    const { name, type, capacity, inventory, basePriceCents, minimumDays, discountThreshold, discountPercent, pickupDropoffDay, description, pricingTiers: rawPricingTiers } = req.body;
     // Parse pricingTiers if it's a JSON string (from FormData)
     let pricingTiers;
     if (rawPricingTiers) {
@@ -51,6 +51,7 @@ export const createVessel = async (req, res) => {
         discountThreshold: parsedDiscountThreshold,
         discountPercent: parsedDiscountPercent,
         pickupDropoffDay: parsedPickupDropoffDay,
+        description: description || '',
         pricingTiers,
         images: images.length > 0 ? images : undefined,
         imageVariants: imageVariants.length > 0 ? imageVariants : undefined
