@@ -1,9 +1,10 @@
 import express from "express";
-import { 
-  forfeitDeposit, 
-  manualRefundDeposit, 
+import {
+  forfeitDeposit,
+  manualRefundDeposit,
   getDepositStatus,
-  triggerRefundCheck
+  triggerRefundCheck,
+  deleteBookingDeposit
 } from "../controllers/adminDepositController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { authorize } from "../middleware/roleMiddleware.js";
@@ -39,5 +40,12 @@ router.post("/:id/forfeit-deposit", forfeitDeposit);
  * Manually refund damage deposit immediately
  */
 router.post("/:id/refund-deposit", manualRefundDeposit);
+
+/**
+ * DELETE /api/admin/bookings/:id
+ * Delete a booking/deposit record (e.g. test data) from the Deposit Management screen.
+ * Does NOT refund Stripe — use the refund endpoint for that.
+ */
+router.delete("/:id", deleteBookingDeposit);
 
 export default router;

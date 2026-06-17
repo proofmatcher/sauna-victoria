@@ -1,7 +1,48 @@
 import { Request, Response } from "express";
+import mongoose from "mongoose";
 import Booking from "../models/Booking.js";
 import { stripe } from "../config/stripe.js";
 import { sendEmail } from "../utils/sendEmail.js";
+
+/**
+ * Delete a booking / deposit record (admin only)
+ * DELETE /api/admin/bookings/:id
+ *
+ * Used by the Deposit Management screen to remove test or obsolete records.
+ * Note: this only removes the local record — it does NOT refund any Stripe
+ * payment. Refunds must be issued explicitly via the refund endpoint.
+ */
+export const deleteBookingDeposit = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: "Invalid booking ID" });
+    }
+
+    const booking = await Booking.findById(id);
+    if (!booking) {
+      return res.status(404).json({ error: "Booking not found" });
+    }
+
+    const info = {
+      id: booking._id,
+      customerName: booking.customerName,
+      status: booking.status,
+      damageDepositStatus: booking.damageDepositStatus,
+      totalPrice: (booking.totalPriceCents || 0) / 100,
+    };
+
+    await Booking.findByIdAndDelete(id);
+
+    console.log(`🗑️  Booking/deposit record deleted by admin: ${id} (${booking.customerName})`);
+
+    res.json({ message: "Booking record deleted successfully", deleted: info });
+  } catch (error: any) {
+    console.error("Error deleting booking/deposit record:", error);
+    res.status(500).json({ error: error.message || "Failed to delete booking record" });
+  }
+};
 
 /**
  * Forfeit damage deposit (keep the deposit, don't refund)
