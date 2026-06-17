@@ -33,7 +33,7 @@ export const createCheckoutSession = async (
   const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
     {
       price_data: {
-        currency: "usd",
+        currency: "cad",
         product_data: {
           name: trip 
             ? `${vessel.name} - Trip on ${new Date(trip.departureTime).toLocaleDateString()}`
@@ -181,7 +181,7 @@ export const handlePaymentSuccess = async (session: Stripe.Checkout.Session) => 
     // Check if this is a mobile sauna booking
     await booking.populate('vessel');
     const vessel = booking.vessel as any;
-    
+
     if (vessel && vessel.type === 'mobile_sauna') {
       // Use mobile sauna specific email template
       const { notifyCustomerMobileSaunaBookingConfirmed } = await import("./notificationService.js");
